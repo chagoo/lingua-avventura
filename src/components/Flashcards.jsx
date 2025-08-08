@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import Card from './Card'
-import { speak } from '../services/speech'
+import { speak } from '../utils/speech'
 
 export default function Flashcards({ pack, onComplete, onLearned, lang }){
   const [idx, setIdx] = useState(0)
