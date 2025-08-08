@@ -87,8 +87,8 @@ export default function MouseAndCheese({ pack, onEatCheese, lang }){
         <Chip>{running? 'En juego':'Game Over'}</Chip>
         <Button variant="outline" className="px-3" onClick={()=>setRunning(r=>!r)}>{running? 'Pausar':'Reiniciar'}</Button>
       </div>
-      <canvas ref={canvasRef} width={28*grid} height={20*grid} className="rounded-2xl border-4 border-amber-700 bg-emerald-100"/>
-      <p className="text-sm text-neutral-600 mt-2">Consejo: repite en voz alta la palabra. 🎧</p>
+      <canvas ref={canvasRef} width={28*grid} height={20*grid} className="rounded-2xl border-4 border-amber-700 bg-emerald-100 dark:border-amber-400 dark:bg-emerald-900"/>
+      <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-2">Consejo: repite en voz alta la palabra. 🎧</p>
     </Card>
   )
 }

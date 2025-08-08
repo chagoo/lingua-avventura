@@ -23,7 +23,7 @@ export default function DailyReview({ pack, onComplete, lang, awardXP }){
     <Card title="Revisión diaria" subtitle="Escribe la traducción al español">
       <div className="text-2xl font-semibold mb-2">{q.prompt}</div>
       <div className="flex gap-2 mb-2">
-        <input value={answer} onChange={e=>setAnswer(e.target.value)} placeholder="Escribe en español" className="flex-1 px-3 py-2 rounded-xl border border-neutral-300" />
+        <input value={answer} onChange={e=>setAnswer(e.target.value)} placeholder="Escribe en español" className="flex-1 px-3 py-2 rounded-xl border border-neutral-300 dark:bg-neutral-800 dark:border-neutral-600 dark:text-neutral-100" />
         <Button onClick={check}>Comprobar</Button>
       </div>
       <Button variant="outline" className="px-3" onClick={()=>speak(q.prompt, lang)}>Escuchar</Button>

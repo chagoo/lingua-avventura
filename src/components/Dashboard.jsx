@@ -14,22 +14,22 @@ export default function Dashboard({ progress }){
           <div className="text-4xl">🔥</div>
           <div>
             <div className="text-3xl font-bold">{progress.streak}</div>
-            <div className="text-sm text-neutral-600">¡Sigue así!</div>
+            <div className="text-sm text-neutral-600 dark:text-neutral-400">¡Sigue así!</div>
           </div>
         </div>
       </Card>
       <Card title="Nivel" subtitle="Gana XP para subir de nivel">
         <div>
           <div className="text-3xl font-bold mb-2">{level}</div>
-          <div className="w-full h-3 bg-neutral-200 rounded-full overflow-hidden">
+          <div className="w-full h-3 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
             <div className="h-full bg-emerald-500" style={{ width: `${xpInLevel}%` }} />
           </div>
-          <div className="text-sm mt-1 text-neutral-600">{xpInLevel} / 100 XP</div>
+          <div className="text-sm mt-1 text-neutral-600 dark:text-neutral-400">{xpInLevel} / 100 XP</div>
         </div>
       </Card>
       <Card title="Palabras" subtitle="Aprendidas (aprox.)">
         <div className="text-3xl font-bold">{totalWords}</div>
-        <div className="text-sm text-neutral-600">Sigue practicando para consolidar.</div>
+        <div className="text-sm text-neutral-600 dark:text-neutral-400">Sigue practicando para consolidar.</div>
       </Card>
       <Card title="Actividad" subtitle="Resumen rápido" footer={
         <div className="flex flex-wrap gap-2">
@@ -40,7 +40,7 @@ export default function Dashboard({ progress }){
           <Chip>Quesos (juego): {progress.completions.gameCheeseEaten}</Chip>
         </div>
       }>
-        <p className="text-neutral-700">¡Vamos por más! 🍝</p>
+        <p className="text-neutral-700 dark:text-neutral-300">¡Vamos por más! 🍝</p>
       </Card>
     </div>
   )

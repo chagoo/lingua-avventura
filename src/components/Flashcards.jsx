@@ -18,7 +18,7 @@ export default function Flashcards({ pack, onComplete, onLearned, lang }){
         <div className="h-48 flex items-center justify-center">
           <div className="perspective w-full h-40">
             <div
-              className={`flip-card w-full h-full rounded-2xl border border-neutral-200 flex items-center justify-center text-2xl font-semibold select-none ${flipped ? 'flipped bg-amber-50' : 'bg-white'}`}
+              className={`flip-card w-full h-full rounded-2xl border border-neutral-200 dark:border-neutral-700 flex items-center justify-center text-2xl font-semibold select-none ${flipped ? 'flipped bg-amber-50 dark:bg-neutral-700' : 'bg-white dark:bg-neutral-800'} dark:text-neutral-100`}
               onClick={()=>setFlipped(!flipped)}
             >
               {flipped ? <span>{current.es}</span> : <span>{frontText}</span>}
@@ -32,7 +32,7 @@ export default function Flashcards({ pack, onComplete, onLearned, lang }){
         </div>
       </Card>
       <Card title="Consejo" subtitle="Pronunciación">
-        <p className="text-neutral-700">Repite en voz alta 3 veces. Imita ritmo y entonación.</p>
+        <p className="text-neutral-700 dark:text-neutral-300">Repite en voz alta 3 veces. Imita ritmo y entonación.</p>
       </Card>
     </div>
   )
