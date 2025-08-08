@@ -9,49 +9,13 @@ import Quiz from './components/Quiz'
 import Matching from './components/Matching'
 import DailyReview from './components/DailyReview'
 import MouseAndCheese from './components/MouseAndCheese'
-
-const PACK_IT_ES = [
-  { it: 'ciao', es: 'hola' },
-  { it: 'grazie', es: 'gracias' },
-  { it: 'per favore', es: 'por favor' },
-  { it: 'prego', es: 'de nada' },
-  { it: 'acqua', es: 'agua' },
-  { it: 'pane', es: 'pan' },
-  { it: 'formaggio', es: 'queso' },
-  { it: 'latte', es: 'leche' },
-  { it: 'ciao, come stai?', es: 'hola, ¿cómo estás?' },
-  { it: 'mi chiamo...', es: 'me llamo...' },
-]
-const PACK_FR_ES = [
-  { fr: 'bonjour', es: 'hola' },
-  { fr: 'merci', es: 'gracias' },
-  { fr: "s'il vous plaît", es: 'por favor' },
-  { fr: 'de rien', es: 'de nada' },
-  { fr: 'eau', es: 'agua' },
-  { fr: 'pain', es: 'pan' },
-  { fr: 'fromage', es: 'queso' },
-  { fr: 'lait', es: 'leche' },
-  { fr: 'comment ça va?', es: '¿cómo estás?' },
-  { fr: "je m'appelle...", es: 'me llamo...' },
-]
-const PACK_EN_ES = [
-  { en: 'hello', es: 'hola' },
-  { en: 'thank you', es: 'gracias' },
-  { en: 'please', es: 'por favor' },
-  { en: "you're welcome", es: 'de nada' },
-  { en: 'water', es: 'agua' },
-  { en: 'bread', es: 'pan' },
-  { en: 'cheese', es: 'queso' },
-  { en: 'milk', es: 'leche' },
-  { en: 'hello, how are you?', es: 'hola, ¿cómo estás?' },
-  { en: 'my name is...', es: 'me llamo...' },
-]
+import { getPack } from './data/packs'
 
 export default function App(){
   const { progress, awardXP, incrementCompletion, markLearned, setNarrationMode, resetAll } = useProgress()
   const [tab, setTab] = useState('dashboard')
   const lang = progress.settings.narrationMode
-  const pack = lang==='it' ? PACK_IT_ES : lang==='fr' ? PACK_FR_ES : PACK_EN_ES
+  const pack = getPack(lang)
 
   const onFlashcardsComplete = ()=>{ incrementCompletion('flashcards'); awardXP(20); alert('¡Flashcards listas!') }
   const onQuizComplete = (score)=>{ incrementCompletion('quiz'); awardXP(10*score); alert(`Quiz terminado. Puntuación: ${score}`) }
@@ -108,7 +72,7 @@ export default function App(){
             <p className="text-sm">Aprender 5 palabras nuevas y jugar 1 partida de Topo & Formaggio.</p>
           </Card>
           <Card title="Acerca del paquete" subtitle="Personalizable">
-            <p className="text-sm">Amplía vocabulario editando <code>PACK_IT_ES</code>, <code>PACK_FR_ES</code> o <code>PACK_EN_ES</code>. La narración usa SpeechSynthesis (voz del sistema).</p>
+            <p className="text-sm">Amplía vocabulario editando los paquetes en <code>src/data/packs.js</code>. La narración usa SpeechSynthesis (voz del sistema).</p>
           </Card>
         </section>
       </main>

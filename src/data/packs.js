@@ -1,0 +1,44 @@
+const PACKS = {
+  it: [
+    { it: 'ciao', es: 'hola' },
+    { it: 'grazie', es: 'gracias' },
+    { it: 'per favore', es: 'por favor' },
+    { it: 'prego', es: 'de nada' },
+    { it: 'acqua', es: 'agua' },
+    { it: 'pane', es: 'pan' },
+    { it: 'formaggio', es: 'queso' },
+    { it: 'latte', es: 'leche' },
+    { it: 'ciao, come stai?', es: 'hola, ¿cómo estás?' },
+    { it: 'mi chiamo...', es: 'me llamo...' },
+  ],
+  fr: [
+    { fr: 'bonjour', es: 'hola' },
+    { fr: 'merci', es: 'gracias' },
+    { fr: "s'il vous plaît", es: 'por favor' },
+    { fr: 'de rien', es: 'de nada' },
+    { fr: 'eau', es: 'agua' },
+    { fr: 'pain', es: 'pan' },
+    { fr: 'fromage', es: 'queso' },
+    { fr: 'lait', es: 'leche' },
+    { fr: 'comment ça va?', es: '¿cómo estás?' },
+    { fr: "je m'appelle...", es: 'me llamo...' },
+  ],
+  en: [
+    { en: 'hello', es: 'hola' },
+    { en: 'thank you', es: 'gracias' },
+    { en: 'please', es: 'por favor' },
+    { en: "you're welcome", es: 'de nada' },
+    { en: 'water', es: 'agua' },
+    { en: 'bread', es: 'pan' },
+    { en: 'cheese', es: 'queso' },
+    { en: 'milk', es: 'leche' },
+    { en: 'hello, how are you?', es: 'hola, ¿cómo estás?' },
+    { en: 'my name is...', es: 'me llamo...' },
+  ],
+}
+
+export function getPack(lang) {
+  return PACKS[lang] || []
+}
+
+export default PACKS
