@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import Card from './Card'
-import { speak } from '../services/speech'
+import { speak } from '../utils/speech'
 
 export default function DailyReview({ pack, onComplete, lang, awardXP }){
   const [qIdx, setQIdx] = useState(0)

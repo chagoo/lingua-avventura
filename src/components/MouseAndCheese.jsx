@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Card from './Card'
 import Chip from './Chip'
-import { speak } from '../services/speech'
+import { speak } from '../utils/speech'
 
 export default function MouseAndCheese({ pack, onEatCheese, lang }){
   const canvasRef = useRef(null)

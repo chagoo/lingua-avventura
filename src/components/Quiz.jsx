@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import Card from './Card'
-import { speak } from '../services/speech'
+import { speak } from '../utils/speech'
 
 const SUBTITLE_MAP = {
   it: 'Traduce del italiano al español',
