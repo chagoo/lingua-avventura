@@ -13,12 +13,9 @@
  * - resetAll()
  */
 
-const LS_KEY = 'lingua_avventura_progress_v1';
+import { todayStr } from '../utils/date'
 
-function todayStr(){
-  const d=new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
+const LS_KEY = 'lingua_avventura_progress_v1';
 
 export const defaultState = {
   createdAt: todayStr(),
