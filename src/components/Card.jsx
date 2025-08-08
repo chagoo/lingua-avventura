@@ -2,7 +2,10 @@ import React from 'react'
 
 export default function Card({ title, subtitle, children, footer, onClick }){
   return (
-    <div className={`rounded-2xl shadow-md bg-white/90 backdrop-blur border border-neutral-200 p-4 hover:shadow-lg transition cursor-${onClick? 'pointer':'default'}`} onClick={onClick}>
+    <div
+      className={`rounded-2xl shadow-md bg-white/90 backdrop-blur border border-neutral-200 p-4 hover:shadow-lg transition ${onClick ? 'cursor-pointer' : 'cursor-default'}`}
+      onClick={onClick}
+    >
       {title && (
         <div className="mb-2">
           <h3 className="text-lg font-semibold">{title}</h3>
