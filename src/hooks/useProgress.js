@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react'
 import { createDataService, defaultState } from '../services/dataService'
+import { todayStr } from '../utils/date'
 
 const svc = createDataService()
 
-export function todayStr(){
-  const d=new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
+export { todayStr }
 
 export function useProgress(){
   const [progress, setProgress] = useState(() => svc.loadProgress() || defaultState)
