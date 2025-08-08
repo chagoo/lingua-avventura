@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Card from './Card'
 import Chip from './Chip'
+import Button from './Button'
 import { speak } from '../utils/speech'
 
 export default function MouseAndCheese({ pack, onEatCheese, lang }){
@@ -84,7 +85,7 @@ export default function MouseAndCheese({ pack, onEatCheese, lang }){
     <Card title="Topo & Formaggio" subtitle="Usa las flechas. Come queso para oír nuevas palabras.">
       <div className="flex items-center gap-2 mb-2">
         <Chip>{running? 'En juego':'Game Over'}</Chip>
-        <button className="px-3 py-2 rounded-xl border border-neutral-200 hover:bg-neutral-50" onClick={()=>setRunning(r=>!r)}>{running? 'Pausar':'Reiniciar'}</button>
+        <Button variant="outline" className="px-3" onClick={()=>setRunning(r=>!r)}>{running? 'Pausar':'Reiniciar'}</Button>
       </div>
       <canvas ref={canvasRef} width={28*grid} height={20*grid} className="rounded-2xl border-4 border-amber-700 bg-emerald-100"/>
       <p className="text-sm text-neutral-600 mt-2">Consejo: repite en voz alta la palabra. 🎧</p>

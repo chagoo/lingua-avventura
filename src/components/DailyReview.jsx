@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import Card from './Card'
+import Button from './Button'
 import { speak } from '../utils/speech'
 
 export default function DailyReview({ pack, onComplete, lang, awardXP }){
@@ -23,9 +24,9 @@ export default function DailyReview({ pack, onComplete, lang, awardXP }){
       <div className="text-2xl font-semibold mb-2">{q.prompt}</div>
       <div className="flex gap-2 mb-2">
         <input value={answer} onChange={e=>setAnswer(e.target.value)} placeholder="Escribe en español" className="flex-1 px-3 py-2 rounded-xl border border-neutral-300" />
-        <button className="px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700" onClick={check}>Comprobar</button>
+        <Button onClick={check}>Comprobar</Button>
       </div>
-      <button className="px-3 py-2 rounded-xl border border-neutral-200 hover:bg-neutral-50" onClick={()=>speak(q.prompt, lang)}>Escuchar</button>
+      <Button variant="outline" className="px-3" onClick={()=>speak(q.prompt, lang)}>Escuchar</Button>
     </Card>
   )
 }

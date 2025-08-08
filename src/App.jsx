@@ -9,6 +9,7 @@ import Quiz from './components/Quiz'
 import Matching from './components/Matching'
 import DailyReview from './components/DailyReview'
 import MouseAndCheese from './components/MouseAndCheese'
+import Button from './components/Button'
 import { getPack } from './data/packs'
 
 export default function App(){
@@ -38,7 +39,7 @@ export default function App(){
               <option value="fr">Narración: Francés</option>
               <option value="en">Narración: Inglés</option>
             </select>
-            <button className="px-3 py-2 rounded-xl border border-neutral-200 hover:bg-neutral-50" onClick={resetAll}>Reiniciar progreso</button>
+            <Button variant="outline" className="px-3" onClick={resetAll}>Reiniciar progreso</Button>
           </div>
         </div>
       </header>

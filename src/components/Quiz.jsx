@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import Card from './Card'
+import Button from './Button'
 import { speak } from '../utils/speech'
 
 const SUBTITLE_MAP = {
@@ -33,12 +34,19 @@ export default function Quiz({ pack, onComplete, onLearned, lang, awardXP }){
       <div className="mb-3 text-2xl font-semibold">{q.prompt}</div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         {q.options.map(opt=> (
-          <button key={opt} className={`px-4 py-3 rounded-xl border text-left ${selected===opt ? (opt===q.correct? 'bg-emerald-100 border-emerald-400':'bg-rose-100 border-rose-400'): 'bg-white border-neutral-200 hover:bg-neutral-50'}`} onClick={()=>select(opt)}>{opt}</button>
+          <Button
+            key={opt}
+            variant="outline"
+            className={`py-3 text-left ${selected===opt ? (opt===q.correct? 'bg-emerald-100 border-emerald-400':'bg-rose-100 border-rose-400') : ''}`}
+            onClick={()=>select(opt)}
+          >
+            {opt}
+          </Button>
         ))}
       </div>
       <div className="mt-3 flex gap-2">
-        <button className="px-4 py-2 rounded-xl border border-neutral-200 hover:bg-neutral-50" onClick={()=>speak(q.prompt, lang)}>Escuchar</button>
-        <button className="px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700" onClick={next}>Continuar</button>
+        <Button variant="outline" onClick={()=>speak(q.prompt, lang)}>Escuchar</Button>
+        <Button onClick={next}>Continuar</Button>
       </div>
     </Card>
   )

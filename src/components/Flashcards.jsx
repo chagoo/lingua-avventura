@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import Card from './Card'
+import Button from './Button'
 import { speak } from '../utils/speech'
 
 export default function Flashcards({ pack, onComplete, onLearned, lang }){
@@ -20,9 +21,9 @@ export default function Flashcards({ pack, onComplete, onLearned, lang }){
           </div>
         </div>
         <div className="flex gap-2">
-          <button className="px-4 py-2 rounded-xl border border-neutral-200 hover:bg-neutral-50" onClick={()=>setFlipped(!flipped)}>Voltear</button>
-          <button className="px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700" onClick={onSpeak}>Escuchar</button>
-          <button className="px-4 py-2 rounded-xl border border-neutral-200 hover:bg-neutral-50" onClick={next}>Siguiente</button>
+          <Button variant="outline" onClick={()=>setFlipped(!flipped)}>Voltear</Button>
+          <Button onClick={onSpeak}>Escuchar</Button>
+          <Button variant="outline" onClick={next}>Siguiente</Button>
         </div>
       </Card>
       <Card title="Consejo" subtitle="Pronunciación">
