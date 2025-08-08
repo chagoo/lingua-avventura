@@ -40,7 +40,7 @@ function daysBetween(a,b){
 }
 
 /** LocalStorage backend */
-function createLocalStorageBackend(){
+export function createLocalStorageBackend(){
   return {
     load(){
       try { const raw = localStorage.getItem(LS_KEY); return raw? JSON.parse(raw): null; } catch { return null; }
@@ -55,7 +55,7 @@ function createLocalStorageBackend(){
 }
 
 /** Firebase backend (stub) — implementa estos 3 métodos mañana */
-function createFirebaseBackend(){
+export function createFirebaseBackend(){
   return {
     load(){ throw new Error('TODO: implementar Firebase.load()'); },
     save(){ throw new Error('TODO: implementar Firebase.save()'); },
@@ -63,10 +63,7 @@ function createFirebaseBackend(){
   }
 }
 
-/** Selector de backend */
-const backend = createLocalStorageBackend(); // <- cambia a createFirebaseBackend() cuando esté listo
-
-export function createDataService(){
+export function createDataService(backend = createLocalStorageBackend()){
   return {
     loadProgress(){
       const state = backend.load() || defaultState;
