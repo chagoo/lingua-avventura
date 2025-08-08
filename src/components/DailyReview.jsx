@@ -2,20 +2,22 @@ import React, { useMemo, useState } from 'react'
 import Card from './Card'
 import Button from './Button'
 import { speak } from '../utils/speech'
+import { orderByDifficulty } from '../utils/spacedRepetition'
 
-export default function DailyReview({ pack, onComplete, lang, awardXP }){
+export default function DailyReview({ pack, onComplete, lang, awardXP, progress, markError }){
   const [qIdx, setQIdx] = useState(0)
   const [answer, setAnswer] = useState('')
   const [score, setScore] = useState(0)
 
   const questions = useMemo(()=>{
-    const base=[...pack].sort(()=>Math.random()-0.5).slice(0,5)
+    const ordered = orderByDifficulty(pack, progress, lang)
+    const base=[...ordered].slice(0,5)
     return base.map(item=>({ prompt: item[lang], correct: item.es }))
-  }, [pack, lang])
+  }, [pack, lang, progress])
 
   const q = questions[qIdx]
   const check = ()=>{
-    if(answer.trim().toLowerCase()===q.correct.toLowerCase()){ setScore(s=>s+1); awardXP(8) }
+    if(answer.trim().toLowerCase()===q.correct.toLowerCase()){ setScore(s=>s+1); awardXP(8) } else { markError(q.prompt) }
     if(qIdx<questions.length-1){ setQIdx(qIdx+1); setAnswer('') } else { onComplete(score) }
   }
 

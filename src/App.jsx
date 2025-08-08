@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useProgress } from './hooks/useProgress'
 import Chip from './components/Chip'
 import Card from './components/Card'
@@ -9,11 +9,13 @@ import Quiz from './components/Quiz'
 import Matching from './components/Matching'
 import DailyReview from './components/DailyReview'
 import MouseAndCheese from './components/MouseAndCheese'
+import MiniDialogues from './components/MiniDialogues'
 import Button from './components/Button'
 import { getPack } from './data/packs'
+import { generateDailyActivities } from './utils/dailyActivities'
 
 export default function App(){
-  const { progress, awardXP, incrementCompletion, markLearned, setNarrationMode, resetAll } = useProgress()
+  const { progress, awardXP, incrementCompletion, markLearned, markError, setNarrationMode, resetAll } = useProgress()
   const [tab, setTab] = useState('dashboard')
   const [dark, setDark] = useState(false)
   const lang = progress.settings.narrationMode
@@ -23,6 +25,7 @@ export default function App(){
   const onQuizComplete = (score)=>{ incrementCompletion('quiz'); awardXP(10*score); alert(`Quiz terminado. Puntuación: ${score}`) }
   const onMatchingComplete = ()=>{ incrementCompletion('matching'); awardXP(30); alert('¡Bien! Memoria completada.') }
   const onReviewComplete = (score)=>{ incrementCompletion('review'); awardXP(12*score); alert(`Revisión completa. Puntos: ${score}`) }
+  const onDialoguesComplete = ()=>{ incrementCompletion('dialogues'); alert('¡Diálogos completados!') }
   const onEatCheese = (word)=>{ incrementCompletion('gameCheeseEaten'); markLearned(word) }
 
   return (
@@ -48,20 +51,22 @@ export default function App(){
         </header>
 
         <main className="max-w-6xl mx-auto p-4">
-          <Tabs tabs={[
+          <Tabs tabs={useMemo(()=>generateDailyActivities([
             { value: 'dashboard', label: 'Inicio' },
             { value: 'flash', label: 'Flashcards' },
             { value: 'quiz', label: 'Quiz' },
             { value: 'match', label: 'Memoria' },
             { value: 'review', label: 'Revisión' },
+            { value: 'dialogues', label: 'Diálogos' },
             { value: 'game', label: 'Juego 🧀' },
-          ]} value={tab} onChange={setTab} />
+          ]), [])} value={tab} onChange={setTab} />
 
           {tab==='dashboard' && <Dashboard progress={progress} />}
-          {tab==='flash' && <Flashcards pack={pack} lang={lang} onComplete={onFlashcardsComplete} onLearned={markLearned} />}
+          {tab==='flash' && <Flashcards pack={pack} lang={lang} onComplete={onFlashcardsComplete} onLearned={markLearned} progress={progress} />}
           {tab==='quiz' && <Quiz pack={pack} lang={lang} onComplete={onQuizComplete} onLearned={markLearned} awardXP={awardXP} />}
           {tab==='match' && <Matching pack={pack} lang={lang} onComplete={onMatchingComplete} onLearned={markLearned} />}
-          {tab==='review' && <DailyReview pack={pack} lang={lang} onComplete={onReviewComplete} awardXP={awardXP} />}
+          {tab==='review' && <DailyReview pack={pack} lang={lang} onComplete={onReviewComplete} awardXP={awardXP} progress={progress} markError={markError} />}
+          {tab==='dialogues' && <MiniDialogues pack={pack} lang={lang} onComplete={onDialoguesComplete} awardXP={awardXP} />}
           {tab==='game' && <MouseAndCheese pack={pack} lang={lang} onEatCheese={onEatCheese} />}
 
           <section className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
