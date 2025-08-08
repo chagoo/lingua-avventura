@@ -9,7 +9,7 @@
  * - awardXP(amount)
  * - incrementCompletion(key, by)
  * - markLearned(word)
- * - setNarrationMode(mode)  // 'it' | 'fr'
+ * - setNarrationMode(mode)  // 'it' | 'fr' | 'en'
  * - resetAll()
  */
 

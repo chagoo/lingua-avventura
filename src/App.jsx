@@ -2,15 +2,17 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useProgress } from './hooks/useProgress'
 
 /*********************** Utilidades ***********************/
-function speak(text, lang = 'it-IT'){
+const VOICE_MAP = { it: 'it-IT', fr: 'fr-FR', en: 'en-US' }
+function speak(text, lang = 'it'){
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
   const utter = new SpeechSynthesisUtterance(text)
-  utter.lang = lang
+  const locale = VOICE_MAP[lang] || VOICE_MAP.it
+  utter.lang = locale
   utter.rate = 0.95
   utter.pitch = 1.0
   const synth = window.speechSynthesis
   const voices = synth.getVoices()
-  const match = voices.find(v => v.lang?.toLowerCase().startsWith(lang.toLowerCase()))
+  const match = voices.find(v => v.lang?.toLowerCase().startsWith(locale.toLowerCase()))
   if (match) utter.voice = match
   synth.cancel()
   synth.speak(utter)
@@ -40,6 +42,23 @@ const PACK_FR_ES = [
   { fr: 'comment ça va?', es: '¿cómo estás?' },
   { fr: "je m'appelle...", es: 'me llamo...' },
 ]
+const PACK_EN_ES = [
+  { en: 'hello', es: 'hola' },
+  { en: 'thank you', es: 'gracias' },
+  { en: 'please', es: 'por favor' },
+  { en: "you're welcome", es: 'de nada' },
+  { en: 'water', es: 'agua' },
+  { en: 'bread', es: 'pan' },
+  { en: 'cheese', es: 'queso' },
+  { en: 'milk', es: 'leche' },
+  { en: 'hello, how are you?', es: 'hola, ¿cómo estás?' },
+  { en: 'my name is...', es: 'me llamo...' },
+]
+const SUBTITLE_MAP = {
+  it: 'Traduce del italiano al español',
+  fr: 'Traduce del francés al español',
+  en: 'Traduce del inglés al español'
+}
 
 /*********************** UI base ***********************/
 function Chip({ children }){
@@ -119,9 +138,9 @@ function Flashcards({ pack, onComplete, onLearned, lang }){
   const [idx, setIdx] = useState(0)
   const [flipped, setFlipped] = useState(false)
   const current = pack[idx]
-  const frontText = lang==='it' ? current.it : current.fr
+  const frontText = current[lang]
 
-  const onSpeak = ()=>{ speak(frontText, lang==='it'?'it-IT':'fr-FR'); onLearned(frontText) }
+  const onSpeak = ()=>{ speak(frontText, lang); onLearned(frontText) }
   const next = ()=>{ if(idx < pack.length-1){ setIdx(idx+1); setFlipped(false) } else { onComplete() } }
 
   return (
@@ -158,7 +177,7 @@ function Quiz({ pack, onComplete, onLearned, lang, awardXP }){
       const correct=item.es
       const options=new Set([correct])
       while(options.size<4){ options.add(base[Math.floor(Math.random()*base.length)].es) }
-      return { prompt: (lang==='it'? item.it:item.fr), correct, options: Array.from(options).sort(()=>Math.random()-0.5) }
+      return { prompt: item[lang], correct, options: Array.from(options).sort(()=>Math.random()-0.5) }
     })
   }, [pack, lang])
 
@@ -167,7 +186,7 @@ function Quiz({ pack, onComplete, onLearned, lang, awardXP }){
   const next = ()=>{ if(qIdx<questions.length-1){ setQIdx(qIdx+1); setSelected(null) } else { onComplete(score) } }
 
   return (
-    <Card title={`Pregunta ${qIdx+1} / ${questions.length}`} subtitle={lang==='it'? 'Traduce del italiano al español':'Traduce del francés al español'}>
+    <Card title={`Pregunta ${qIdx+1} / ${questions.length}`} subtitle={SUBTITLE_MAP[lang]}>
       <div className="mb-3 text-2xl font-semibold">{q.prompt}</div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         {q.options.map(opt=> (
@@ -175,7 +194,7 @@ function Quiz({ pack, onComplete, onLearned, lang, awardXP }){
         ))}
       </div>
       <div className="mt-3 flex gap-2">
-        <button className="px-4 py-2 rounded-xl border border-neutral-200 hover:bg-neutral-50" onClick={()=>speak(q.prompt, lang==='it'?'it-IT':'fr-FR')}>Escuchar</button>
+        <button className="px-4 py-2 rounded-xl border border-neutral-200 hover:bg-neutral-50" onClick={()=>speak(q.prompt, lang)}>Escuchar</button>
         <button className="px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700" onClick={next}>Continuar</button>
       </div>
     </Card>
@@ -186,8 +205,8 @@ function Quiz({ pack, onComplete, onLearned, lang, awardXP }){
 function Matching({ pack, onComplete, onLearned, lang }){
   const items = useMemo(()=>{
     const slice=[...pack].sort(()=>Math.random()-0.5).slice(0,6)
-    const words=slice.map(w=>({ id:`w-${w.it||w.fr}`, type:'word', text: (lang==='it'?w.it:w.fr), pair:w.es }))
-    const defs=slice.map(w=>({ id:`d-${w.es}`, type:'def', text:w.es, pair:(lang==='it'?w.it:w.fr) }))
+    const words=slice.map(w=>({ id:`w-${w.it||w.fr||w.en}`, type:'word', text: w[lang], pair:w.es }))
+    const defs=slice.map(w=>({ id:`d-${w.es}`, type:'def', text:w.es, pair:w[lang] }))
     return [...words,...defs].sort(()=>Math.random()-0.5)
   }, [pack, lang])
 
@@ -224,7 +243,7 @@ function DailyReview({ pack, onComplete, lang, awardXP }){
 
   const questions = useMemo(()=>{
     const base=[...pack].sort(()=>Math.random()-0.5).slice(0,5)
-    return base.map(item=>({ prompt: (lang==='it'? item.it:item.fr), correct: item.es }))
+    return base.map(item=>({ prompt: item[lang], correct: item.es }))
   }, [pack, lang])
 
   const q = questions[qIdx]
@@ -240,7 +259,7 @@ function DailyReview({ pack, onComplete, lang, awardXP }){
         <input value={answer} onChange={e=>setAnswer(e.target.value)} placeholder="Escribe en español" className="flex-1 px-3 py-2 rounded-xl border border-neutral-300" />
         <button className="px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700" onClick={check}>Comprobar</button>
       </div>
-      <button className="px-3 py-2 rounded-xl border border-neutral-200 hover:bg-neutral-50" onClick={()=>speak(q.prompt, lang==='it'?'it-IT':'fr-FR')}>Escuchar</button>
+      <button className="px-3 py-2 rounded-xl border border-neutral-200 hover:bg-neutral-50" onClick={()=>speak(q.prompt, lang)}>Escuchar</button>
     </Card>
   )
 }
@@ -251,7 +270,7 @@ function MouseAndCheese({ pack, onEatCheese, lang }){
   const [running, setRunning] = useState(true)
   const grid = 20
   const width = 28, height = 20
-  const words = useMemo(()=> (lang==='it'? pack.map(w=>w.it): pack.map(w=>w.fr)), [pack, lang])
+  const words = useMemo(()=> pack.map(w=>w[lang]), [pack, lang])
   const wordIndexRef = useRef(0)
   const mouseRef = useRef([{x:5,y:5}])
   const dirRef = useRef({x:1,y:0})
@@ -291,7 +310,7 @@ function MouseAndCheese({ pack, onEatCheese, lang }){
 
       if(head.x===cheeseRef.current.x && head.y===cheeseRef.current.y){
         const word = words[wordIndexRef.current % words.length]
-        speak(word, lang==='it'? 'it-IT':'fr-FR')
+        speak(word, lang)
         onEatCheese(word)
         wordIndexRef.current++
         speedRef.current = Math.max(70, speedRef.current - 3)
@@ -340,7 +359,7 @@ export default function App(){
   const { progress, awardXP, incrementCompletion, markLearned, setNarrationMode, resetAll } = useProgress()
   const [tab, setTab] = useState('dashboard')
   const lang = progress.settings.narrationMode
-  const pack = lang==='it' ? PACK_IT_ES : PACK_FR_ES
+  const pack = lang==='it' ? PACK_IT_ES : lang==='fr' ? PACK_FR_ES : PACK_EN_ES
 
   const onFlashcardsComplete = ()=>{ incrementCompletion('flashcards'); awardXP(20); alert('¡Flashcards listas!') }
   const onQuizComplete = (score)=>{ incrementCompletion('quiz'); awardXP(10*score); alert(`Quiz terminado. Puntuación: ${score}`) }
@@ -355,12 +374,13 @@ export default function App(){
           <div className="flex items-center gap-3">
             <span className="text-2xl">🍝</span>
             <h1 className="text-xl md:text-2xl font-extrabold tracking-tight">Lingua Avventura</h1>
-            <Chip>Italiano para hispanohablantes</Chip>
+            <Chip>Idiomas para hispanohablantes</Chip>
           </div>
           <div className="flex items-center gap-2">
             <select className="px-3 py-2 rounded-xl border border-neutral-300 bg-white" value={lang} onChange={e=>setNarrationMode(e.target.value)}>
               <option value="it">Narración: Italiano</option>
               <option value="fr">Narración: Francés</option>
+              <option value="en">Narración: Inglés</option>
             </select>
             <button className="px-3 py-2 rounded-xl border border-neutral-200 hover:bg-neutral-50" onClick={resetAll}>Reiniciar progreso</button>
           </div>
@@ -396,12 +416,12 @@ export default function App(){
             <p className="text-sm">Aprender 5 palabras nuevas y jugar 1 partida de Topo & Formaggio.</p>
           </Card>
           <Card title="Acerca del paquete" subtitle="Personalizable">
-            <p className="text-sm">Amplía vocabulario editando <code>PACK_IT_ES</code> o <code>PACK_FR_ES</code>. La narración usa SpeechSynthesis (voz del sistema).</p>
+            <p className="text-sm">Amplía vocabulario editando <code>PACK_IT_ES</code>, <code>PACK_FR_ES</code> o <code>PACK_EN_ES</code>. La narración usa SpeechSynthesis (voz del sistema).</p>
           </Card>
         </section>
       </main>
 
-      <footer className="max-w-6xl mx-auto p-4 text-center text-xs text-neutral-500">Hecho con ❤️ para aprender Italiano — y con opción de narración en Francés.</footer>
+      <footer className="max-w-6xl mx-auto p-4 text-center text-xs text-neutral-500">Hecho con ❤️ para aprender idiomas — narración disponible en Italiano, Francés e Inglés.</footer>
     </div>
   )
 }
