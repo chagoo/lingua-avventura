@@ -31,6 +31,12 @@ export default function Dashboard({ progress }){
         <div className="text-3xl font-bold">{totalWords}</div>
         <div className="text-sm text-neutral-600 dark:text-neutral-400">Sigue practicando para consolidar.</div>
       </Card>
+      <Card title="Meta diaria" subtitle="XP ganado hoy">
+        <div className="text-3xl font-bold">{progress.todayXP}/{progress.dailyGoal}</div>
+        <div className="w-full h-3 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden mt-1">
+          <div className="h-full bg-blue-500" style={{ width: `${Math.min(100, (progress.todayXP/progress.dailyGoal)*100)}%` }} />
+        </div>
+      </Card>
       <Card title="Actividad" subtitle="Resumen rápido" footer={
         <div className="flex flex-wrap gap-2">
           <Chip>Flashcards: {progress.completions.flashcards}</Chip>
@@ -38,6 +44,7 @@ export default function Dashboard({ progress }){
           <Chip>Memoria: {progress.completions.matching}</Chip>
           <Chip>Revisión: {progress.completions.review}</Chip>
           <Chip>Quesos (juego): {progress.completions.gameCheeseEaten}</Chip>
+          <Chip>Diálogos: {progress.completions.dialogues}</Chip>
         </div>
       }>
         <p className="text-neutral-700 dark:text-neutral-300">¡Vamos por más! 🍝</p>

@@ -1,12 +1,14 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import Card from './Card'
 import Button from './Button'
 import { speak } from '../utils/speech'
+import { orderByDifficulty } from '../utils/spacedRepetition'
 
-export default function Flashcards({ pack, onComplete, onLearned, lang }){
+export default function Flashcards({ pack, onComplete, onLearned, lang, progress }){
   const [idx, setIdx] = useState(0)
   const [flipped, setFlipped] = useState(false)
-  const current = pack[idx]
+  const ordered = useMemo(()=>orderByDifficulty(pack, progress, lang), [pack, progress, lang])
+  const current = ordered[idx]
   const frontText = current[lang]
 
   const onSpeak = ()=>{ speak(frontText, lang); onLearned(frontText) }

@@ -1,21 +1,14 @@
-/**
- * Data Service con interfaz estable para progreso.
- * Hoy: implementación LocalStorage.
- * Mañana: podrás cambiar a Firebase implementando la MISMA interfaz.
- *
- * Interfaz esperada (métodos):
- * - loadProgress()
- * - saveProgress(state)
- * - awardXP(amount)
- * - incrementCompletion(key, by)
- * - markLearned(word)
- * - setNarrationMode(mode)  // 'it' | 'fr' | 'en'
- * - resetAll()
- */
+// src/services/dataService.js
+import { auth, db } from "./firebase";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
-import { todayStr } from '../utils/date'
+const BACKEND = (import.meta.env.VITE_BACKEND || "local").toLowerCase();
+const LS_KEY  = "lingua_avventura_progress_v2";
 
-const LS_KEY = 'lingua_avventura_progress_v1';
+function todayStr(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 
 export const defaultState = {
   createdAt: todayStr(),
@@ -23,77 +16,128 @@ export const defaultState = {
   streak: 1,
   xp: 0,
   wordsLearned: {},
+  reviews: {},
+  settings: { narrationMode: "it" },
   completions: {
     flashcards: 0,
     quiz: 0,
     matching: 0,
     review: 0,
+    dialogues: 0,
     gameCheeseEaten: 0,
   },
-  settings: { narrationMode: 'it' }
 };
 
-function daysBetween(a,b){
-  const A = new Date(a+'T00:00:00');
-  const B = new Date(b+'T00:00:00');
-  return Math.round((B-A)/(1000*60*60*24));
+function createLocalBackend(){
+  return {
+    async load(){ const raw = localStorage.getItem(LS_KEY); return raw ? JSON.parse(raw) : null; },
+    async save(s){ localStorage.setItem(LS_KEY, JSON.stringify(s)); },
+    async clear(){ localStorage.removeItem(LS_KEY); },
+    async user(){ return { uid: "local-user" }; },
+  };
 }
 
-/** LocalStorage backend */
-export function createLocalStorageBackend(){
-  return {
-    load(){
-      try { const raw = localStorage.getItem(LS_KEY); return raw? JSON.parse(raw): null; } catch { return null; }
-    },
-    save(state){
-      try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch {}
-    },
-    clear(){
-      try { localStorage.removeItem(LS_KEY); } catch {}
+async function createFirebaseBackend() {
+  if (!auth.currentUser) throw new Error("AUTH_REQUIRED");
+  const user = auth.currentUser;
+
+  async function load() {
+    const ref = doc(db, "users", user.uid, "app", "progress");
+    const snap = await getDoc(ref);
+    return snap.exists() ? snap.data() : null;
+  }
+  async function save(state) {
+    const ref = doc(db, "users", user.uid, "app", "progress");
+    await setDoc(ref, { ...state, updatedAt: serverTimestamp() }, { merge: true });
+  }
+  async function clear() {
+    const ref = doc(db, "users", user.uid, "app", "progress");
+    await setDoc(ref, {}, { merge: true });
+  }
+  return { load, save, clear, user: async () => user };
+}
+
+async function backendFactory(){
+  if (BACKEND === "firebase") return await createFirebaseBackend();
+  return createLocalBackend();
+}
+
+export async function createDataService(){
+  const be = await backendFactory();
+
+  function daysBetween(a,b){
+    const A = new Date(a+"T00:00:00"), B = new Date(b+"T00:00:00");
+    return Math.round((B-A)/86400000);
+  }
+
+  function applyMigrations(state){
+    const base = structuredClone(state);
+    // Asegurar settings
+    base.settings = {
+      ...defaultState.settings,
+      ...(base.settings || {})
+    };
+    // Asegurar completions
+    base.completions = {
+      ...defaultState.completions,
+      ...(base.completions || {})
+    };
+    // Asegurar campos básicos
+    if (!base.createdAt) base.createdAt = todayStr();
+    if (!base.lastActive) base.lastActive = todayStr();
+    if (typeof base.streak !== 'number') base.streak = 1;
+    if (typeof base.xp !== 'number') base.xp = 0;
+    if (!base.wordsLearned) base.wordsLearned = {};
+    if (!base.reviews) base.reviews = {};
+    return base;
+  }
+
+  async function loadProgress(){
+    const saved = await be.load();
+    let base  = saved ? applyMigrations(saved) : structuredClone(defaultState);
+    const today = todayStr();
+    if (base.lastActive !== today){
+      const diff = daysBetween(base.lastActive, today);
+      base.streak = (diff === 1) ? base.streak + 1 : 1;
+      base.lastActive = today;
+      await be.save(base);
     }
+    return structuredClone(base);
   }
-}
 
-/** Firebase backend (stub) — implementa estos 3 métodos mañana */
-export function createFirebaseBackend(){
+  async function saveProgress(state){ await be.save(state); }
+
   return {
-    load(){ throw new Error('TODO: implementar Firebase.load()'); },
-    save(){ throw new Error('TODO: implementar Firebase.save()'); },
-    clear(){ throw new Error('TODO: implementar Firebase.clear()'); },
-  }
-}
+    async loadProgress(){ return await loadProgress(); },
+    async saveProgress(s){ return await saveProgress(s); },
 
-export function createDataService(backend = createLocalStorageBackend()){
-  return {
-    loadProgress(){
-      const state = backend.load() || defaultState;
-      // Mantener racha al cargar (si es nuevo día)
-      const today = todayStr();
-      if (state.lastActive !== today){
-        const diff = daysBetween(state.lastActive, today);
-        state.streak = (diff === 1) ? (state.streak + 1) : 1;
-        state.lastActive = today;
-        backend.save(state);
-      }
-      return structuredClone(state);
+    async awardXP(s, amount){
+      s.xp += amount;
+      s.lastActive = todayStr();
+      await be.save(s);
+      return s;
     },
-    saveProgress(state){ backend.save(state); },
-
-    awardXP(state, amount){ state.xp += amount; state.lastActive = todayStr(); backend.save(state); return state; },
-
-    incrementCompletion(state, key, by=1){
-      state.completions[key] = (state.completions[key]||0) + by;
-      state.lastActive = todayStr();
-      backend.save(state); return state;
+    async incrementCompletion(s, key, by=1){
+      s.completions[key] = (s.completions[key]||0) + by;
+      s.lastActive = todayStr();
+      await be.save(s);
+      return s;
     },
-
-    markLearned(state, word){
-      state.wordsLearned[word] = (state.wordsLearned[word]||0) + 1;
-      state.xp += 5; state.lastActive = todayStr(); backend.save(state); return state;
+    async markLearned(s, wordId){
+      s.wordsLearned[wordId] = (s.wordsLearned[wordId]||0) + 1;
+      s.lastActive = todayStr();
+      await be.save(s);
+      return s;
     },
-
-    setNarrationMode(state, mode){ state.settings.narrationMode = mode; backend.save(state); return state; },
-
-    resetAll(){ backend.clear(); backend.save(defaultState); return structuredClone(defaultState); },
-  }
+    async setNarrationMode(s, mode){
+      s.settings.narrationMode = mode;
+      await be.save(s);
+      return s;
+    },
+    async resetAll(){
+      const fresh = structuredClone(defaultState);
+      await be.save(fresh);
+      return fresh;
+    },
+  };
 }
