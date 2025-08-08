@@ -1,21 +1,12 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Lingua Avventura</title>
-    <script src="https://cdn.tailwindcss.com"></script>
   </head>
-  <body class="min-h-screen bg-gradient-to-br from-indigo-300 via-purple-300 to-pink-300 flex items-center justify-center">
-    <div class="text-center space-y-8">
-      <h1 class="text-5xl md:text-6xl font-extrabold text-gray-800 drop-shadow-lg">Lingua Avventura</h1>
-      <a id="start-btn" href="game.html" class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white text-2xl font-bold py-4 px-8 rounded-lg shadow-lg transition-transform transform hover:scale-105">Comenzar Aventura</a>
-    </div>
-    <script>
-      const startBtn = document.getElementById('start-btn');
-      startBtn.addEventListener('click', () => {
-        console.log('Iniciando la aventura...');
-      });
-    </script>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
