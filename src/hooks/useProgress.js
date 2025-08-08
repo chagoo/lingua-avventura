@@ -1,16 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { createDataService, defaultState } from '../services/dataService'
 import { todayStr } from '../utils/date'
 
-const svc = createDataService()
-
 export { todayStr }
 
-export function useProgress(){
+export function useProgress({ backend, dataService } = {}){
+  const svc = useMemo(() => dataService || createDataService(backend), [backend, dataService])
   const [progress, setProgress] = useState(() => svc.loadProgress() || defaultState)
 
   // Sincroniza al montar (por si cambió la racha)
-  useEffect(()=>{ setProgress(svc.loadProgress()) }, [])
+  useEffect(()=>{ setProgress(svc.loadProgress()) }, [svc])
 
   const awardXP = (amount)=> setProgress(prev=> ({...svc.awardXP({...prev}, amount)}))
   const incrementCompletion = (key, by=1)=> setProgress(prev=> ({...svc.incrementCompletion({...prev}, key, by)}))
