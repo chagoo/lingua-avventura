@@ -6,16 +6,21 @@ export { todayStr }
 
 export function useProgress({ backend, dataService } = {}){
   const svc = useMemo(() => dataService || createDataService(backend), [backend, dataService])
-  const [progress, setProgress] = useState(() => svc.loadProgress() || defaultState)
+  const [progress, setProgress] = useState(defaultState)
 
   // Sincroniza al montar (por si cambió la racha)
-  useEffect(()=>{ setProgress(svc.loadProgress()) }, [svc])
+  useEffect(()=>{
+    let alive = true
+    svc.loadProgress().then(p=>{ if(alive) setProgress(p) })
+    return ()=>{ alive=false }
+  }, [svc])
 
-  const awardXP = (amount)=> setProgress(prev=> ({...svc.awardXP({...prev}, amount)}))
-  const incrementCompletion = (key, by=1)=> setProgress(prev=> ({...svc.incrementCompletion({...prev}, key, by)}))
-  const markLearned = (word)=> setProgress(prev=> ({...svc.markLearned({...prev}, word)}))
-  const setNarrationMode = (mode)=> setProgress(prev=> ({...svc.setNarrationMode({...prev}, mode)}))
-  const resetAll = ()=> setProgress(svc.resetAll())
+  const awardXP = async (amount)=>{ const s = await svc.awardXP({...progress}, amount); setProgress({...s}) }
+  const incrementCompletion = async (key, by=1)=>{ const s = await svc.incrementCompletion({...progress}, key, by); setProgress({...s}) }
+  const markLearned = async (word)=>{ const s = await svc.markLearned({...progress}, word); setProgress({...s}) }
+  const markError = async (word)=>{ const s = await svc.markError({...progress}, word); setProgress({...s}) }
+  const setNarrationMode = async (mode)=>{ const s = await svc.setNarrationMode({...progress}, mode); setProgress({...s}) }
+  const resetAll = async ()=>{ const s = await svc.resetAll(); setProgress(s) }
 
-  return { progress, awardXP, incrementCompletion, markLearned, setNarrationMode, resetAll }
+  return { progress, awardXP, incrementCompletion, markLearned, markError, setNarrationMode, resetAll }
 }
