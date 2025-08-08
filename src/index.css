@@ -4,3 +4,17 @@
 
 html, body, #root { height: 100%; }
 body { @apply bg-amber-50 text-neutral-900; }
+
+.perspective {
+  perspective: 1000px;
+}
+
+.flip-card {
+  transform-style: preserve-3d;
+  transition: transform 0.6s;
+  transform: rotateY(0deg);
+}
+
+.flip-card.flipped {
+  transform: rotateY(180deg);
+}

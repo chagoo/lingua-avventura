@@ -16,8 +16,13 @@ export default function Flashcards({ pack, onComplete, onLearned, lang }){
     <div className="grid md:grid-cols-2 gap-4">
       <Card title="Flashcard" subtitle="Pulsa para voltear o escuchar">
         <div className="h-48 flex items-center justify-center">
-          <div className={`w-full h-40 rounded-2xl border border-neutral-200 flex items-center justify-center text-2xl font-semibold select-none ${flipped? 'bg-amber-50':'bg-white'}`} onClick={()=>setFlipped(!flipped)}>
-            {flipped ? <span>{current.es}</span> : <span>{frontText}</span>}
+          <div className="perspective w-full h-40">
+            <div
+              className={`flip-card w-full h-full rounded-2xl border border-neutral-200 flex items-center justify-center text-2xl font-semibold select-none ${flipped ? 'flipped bg-amber-50' : 'bg-white'}`}
+              onClick={()=>setFlipped(!flipped)}
+            >
+              {flipped ? <span>{current.es}</span> : <span>{frontText}</span>}
+            </div>
           </div>
         </div>
         <div className="flex gap-2">
