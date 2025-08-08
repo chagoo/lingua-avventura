@@ -27,7 +27,7 @@ export default function Matching({ pack, onComplete, onLearned, lang }){
     <Card title="Memoria" subtitle="Empareja palabra y significado">
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
         {items.map(it=> (
-          <button key={it.id} className={`px-3 py-3 rounded-xl border text-left ${removed.includes(it.id)? 'opacity-30 pointer-events-none':'hover:bg-neutral-50'} ${selected?.id===it.id? 'border-emerald-400 bg-emerald-50':'border-neutral-200 bg-white'}`} onClick={()=>click(it)}>{it.text}</button>
+          <button key={it.id} className={`px-3 py-3 rounded-xl border text-left ${removed.includes(it.id)? 'opacity-30 pointer-events-none':'hover:bg-neutral-50 dark:hover:bg-neutral-700'} ${selected?.id===it.id? 'border-emerald-400 bg-emerald-50 dark:border-emerald-600 dark:bg-emerald-900':'border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100'}`} onClick={()=>click(it)}>{it.text}</button>
         ))}
       </div>
     </Card>

@@ -37,7 +37,7 @@ export default function Quiz({ pack, onComplete, onLearned, lang, awardXP }){
           <Button
             key={opt}
             variant="outline"
-            className={`py-3 text-left ${selected===opt ? (opt===q.correct? 'bg-emerald-100 border-emerald-400':'bg-rose-100 border-rose-400') : ''}`}
+            className={`py-3 text-left ${selected===opt ? (opt===q.correct? 'bg-emerald-100 border-emerald-400 dark:bg-emerald-900 dark:border-emerald-600':'bg-rose-100 border-rose-400 dark:bg-rose-900 dark:border-rose-600') : ''}`}
             onClick={()=>select(opt)}
           >
             {opt}
