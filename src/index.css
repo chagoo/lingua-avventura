@@ -18,3 +18,12 @@ body { @apply bg-amber-50 text-neutral-900 dark:bg-neutral-900 dark:text-neutral
 .flip-card.flipped {
   transform: rotateY(180deg);
 }
+
+.flip-card > span {
+  display: block;
+  backface-visibility: hidden;
+}
+
+.flip-card.flipped > span {
+  transform: rotateY(180deg);
+}
