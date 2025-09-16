@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { loginEmail, registerEmail } from "../services/firebase";
+import { loginEmail, registerEmail } from "../services/supabase";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
@@ -7,12 +7,27 @@ export default function LoginForm() {
   const [msg,   setMsg]   = useState("");
 
   async function doLogin() {
-    try { await loginEmail(email, pass); setMsg("Listo. Entrando…"); }
-    catch (e) { setMsg(e.message); }
+    setMsg("");
+    try {
+      await loginEmail(email, pass);
+      setMsg("Listo. Entrando…");
+    } catch (e) {
+      setMsg(e?.message || "No se pudo iniciar sesión.");
+    }
   }
+
   async function doRegister() {
-    try { await registerEmail(email, pass); setMsg("Cuenta creada. Entrando…"); }
-    catch (e) { setMsg(e.message); }
+    setMsg("");
+    try {
+      const data = await registerEmail(email, pass);
+      if (data?.session) {
+        setMsg("Cuenta creada. Entrando…");
+      } else {
+        setMsg("Cuenta creada. Revisa tu email para confirmar el acceso.");
+      }
+    } catch (e) {
+      setMsg(e?.message || "No se pudo registrar la cuenta.");
+    }
   }
 
   return (
