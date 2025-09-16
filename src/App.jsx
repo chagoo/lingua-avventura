@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { onAuth, logout } from "./services/firebase";
+import { onAuth, logout } from "./services/supabase";
 import LoginForm from "./components/LoginForm";
 
 import { useProgress } from "./hooks/useProgress";
@@ -41,6 +41,9 @@ function AppShell({ user }) {
   const [tab, setTab] = useState("dashboard");
   const [dark, setDark] = useState(false);
 
+  const userId = (user?.id || user?.uid || "").toString();
+  const shortId = userId ? `${userId.slice(0, 8)}…` : null;
+
   const tabs = useMemo(() => generateDailyActivities([
     { value: "dashboard", label: "Inicio" },
     { value: "flash", label: "Flashcards" },
@@ -77,7 +80,9 @@ function AppShell({ user }) {
               <Chip>Idiomas para hispanohablantes</Chip>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-neutral-500">UID: {user.uid.slice(0, 8)}…</span>
+              {shortId && (
+                <span className="text-xs text-neutral-500">UID: {shortId}</span>
+              )}
               <select
                 className="px-3 py-2 rounded-xl border border-neutral-300 bg-white dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-100"
                 value={lang}

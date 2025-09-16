@@ -1,8 +1,15 @@
 // src/services/dataService.js
-import { auth, db } from "./firebase";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import {
+  getProgressTableName,
+  isSupabaseConfigured,
+  requireAuthUser,
+  loadUserState,
+  saveUserState,
+  deleteUserState,
+} from "./supabase";
 
-const BACKEND = (import.meta.env.VITE_BACKEND || "local").toLowerCase();
+const configuredBackend = (import.meta.env?.VITE_BACKEND || "").toLowerCase();
+const BACKEND = configuredBackend || (isSupabaseConfigured() ? "supabase" : "local");
 const LS_KEY  = "lingua_avventura_progress_v2";
 
 function todayStr(){
@@ -33,32 +40,35 @@ function createLocalBackend(){
     async load(){ const raw = localStorage.getItem(LS_KEY); return raw ? JSON.parse(raw) : null; },
     async save(s){ localStorage.setItem(LS_KEY, JSON.stringify(s)); },
     async clear(){ localStorage.removeItem(LS_KEY); },
-    async user(){ return { uid: "local-user" }; },
+    async user(){ return { id: "local-user" }; },
   };
 }
 
-async function createFirebaseBackend() {
-  if (!auth.currentUser) throw new Error("AUTH_REQUIRED");
-  const user = auth.currentUser;
+async function createSupabaseBackend() {
+  if (!isSupabaseConfigured()) {
+    throw new Error("SUPABASE_CONFIG_MISSING");
+  }
+
+  const user = await requireAuthUser();
+  const table = getProgressTableName();
 
   async function load() {
-    const ref = doc(db, "users", user.uid, "app", "progress");
-    const snap = await getDoc(ref);
-    return snap.exists() ? snap.data() : null;
+    return await loadUserState(table, user.id);
   }
+
   async function save(state) {
-    const ref = doc(db, "users", user.uid, "app", "progress");
-    await setDoc(ref, { ...state, updatedAt: serverTimestamp() }, { merge: true });
+    await saveUserState(table, user.id, state);
   }
+
   async function clear() {
-    const ref = doc(db, "users", user.uid, "app", "progress");
-    await setDoc(ref, {}, { merge: true });
+    await deleteUserState(table, user.id);
   }
+
   return { load, save, clear, user: async () => user };
 }
 
 async function backendFactory(){
-  if (BACKEND === "firebase") return await createFirebaseBackend();
+  if (BACKEND === "supabase") return await createSupabaseBackend();
   return createLocalBackend();
 }
 
