@@ -5,8 +5,12 @@ SPA gamificada para aprender italiano (UI en español) con minijuego tipo Snake 
 ## Desarrollo local
 ```bash
 npm install
-npm run dev
+npm run api   # expone la API básica en http://localhost:4000
+npm run dev   # en otra terminal, levanta la SPA
 ```
+
+La aplicación intenta consumir la API de vocabulario en `VITE_PACKS_API_URL` (por defecto `http://localhost:4000`).
+Si la API no está disponible, se mantiene el paquete local definido en `src/data/packs.json`.
 
 ## Build
 ```bash

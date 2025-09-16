@@ -3,6 +3,7 @@ import { onAuth, logout } from "./services/firebase";
 import LoginForm from "./components/LoginForm";
 
 import { useProgress } from "./hooks/useProgress";
+import { usePack } from "./hooks/usePack";
 import Chip from "./components/Chip";
 import Card from "./components/Card";
 import Tabs from "./components/Tabs";
@@ -14,7 +15,6 @@ import DailyReview from "./components/DailyReview";
 import MouseAndCheese from "./components/MouseAndCheese";
 import MiniDialogues from "./components/MiniDialogues";
 import Button from "./components/Button";
-import { getPack } from "./data/packs";
 import { generateDailyActivities } from "./utils/dailyActivities";
 
 // Root: maneja auth y solo monta AppShell cuando hay usuario
@@ -56,7 +56,7 @@ function AppShell({ user }) {
   if (!progress) return <div style={{ padding:16 }}>Sin datos de progreso.</div>;
 
   const lang = progress.settings?.narrationMode || 'it';
-  const pack = getPack(lang);
+  const { pack, loading: packLoading, error: packError } = usePack(lang);
 
   // Handlers
   const onFlashcardsComplete = () => { incrementCompletion("flashcards"); awardXP(20); alert("¡Flashcards listas!"); };
@@ -95,6 +95,16 @@ function AppShell({ user }) {
         </header>
         <main className="max-w-6xl mx-auto p-4">
           <Tabs tabs={tabs} value={tab} onChange={setTab} />
+          {packLoading && (
+            <p className="mt-4 text-sm text-neutral-600 dark:text-neutral-300">
+              Cargando vocabulario desde la API…
+            </p>
+          )}
+          {packError && (
+            <p className="mt-4 text-sm text-amber-700 dark:text-amber-300">
+              No se pudo cargar el vocabulario remoto ({packError.message}). Usando datos locales.
+            </p>
+          )}
           {tab === "dashboard" && <Dashboard progress={progress} />}
           {tab === "flash" && (
             <Flashcards
@@ -158,7 +168,7 @@ function AppShell({ user }) {
               <p className="text-sm">Aprender 5 palabras y 1 partida del juego.</p>
             </Card>
             <Card title="Acerca del paquete" subtitle="Personalizable">
-              <p className="text-sm">Edita vocabulario en src/data/packs.js.</p>
+              <p className="text-sm">Edita vocabulario en src/data/packs.json (la API usa el mismo archivo).</p>
             </Card>
           </section>
         </main>
