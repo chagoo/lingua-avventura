@@ -4,6 +4,7 @@ import LoginForm from "./components/LoginForm";
 
 import { useProgress } from "./hooks/useProgress";
 import { usePack } from "./hooks/usePack";
+import { fetchAvailablePacks } from "./services/packsApi";
 import Chip from "./components/Chip";
 import Card from "./components/Card";
 import Tabs from "./components/Tabs";
@@ -16,6 +17,7 @@ import MouseAndCheese from "./components/MouseAndCheese";
 import MiniDialogues from "./components/MiniDialogues";
 import Button from "./components/Button";
 import { generateDailyActivities } from "./utils/dailyActivities";
+import PackManager from "./components/PackManager";
 
 // Root: maneja auth y solo monta AppShell cuando hay usuario
 export default function Root() {
@@ -42,10 +44,26 @@ function AppShell({ user }) {
   const { progress, loading, error, awardXP, incrementCompletion, markLearned, setNarrationMode, resetAll } = useProgress();
   const [tab, setTab] = useState("dashboard");
   const [dark, setDark] = useState(false);
+  const [packName, setPackName] = useState('default');
+  const [availablePacks, setAvailablePacks] = useState(['default']);
+  // Idioma para narración (guardado en progreso) y uno independiente para vocabulario
+  const narrationLang = progress?.settings?.narrationMode || 'it';
+  const [vocabLang, setVocabLang] = useState(() => narrationLang);
 
   // Derivamos lang aún si progress no está listo; así evitamos montar un hook extra luego.
-  const lang = progress?.settings?.narrationMode || 'it';
-  const { pack, loading: packLoading, error: packError } = usePack(lang);
+  const { pack, loading: packLoading, error: packError } = usePack(vocabLang, packName);
+
+  // Cargar lista de packs disponibles (Supabase) una vez que se conozca el idioma
+  useEffect(() => {
+    let cancelled = false;
+    fetchAvailablePacks(vocabLang).then(list => {
+      if (!cancelled && Array.isArray(list) && list.length) {
+        setAvailablePacks(list);
+        if (!list.includes(packName)) setPackName(list[0]);
+      }
+    }).catch(()=>{});
+    return ()=>{ cancelled = true; };
+  }, [vocabLang]);
 
   const userId = (user?.id || user?.uid || "").toString();
   const shortId = userId ? `${userId.slice(0, 8)}…` : null;
@@ -58,6 +76,7 @@ function AppShell({ user }) {
     { value: "review", label: "Revisión" },
     { value: "dialogues", label: "Diálogos" },
     { value: "game", label: "Juego 🧀" },
+    { value: "packs", label: "Packs" },
   ]), []);
 
   // Ahora sí: renders tempranos controlados SIN introducir nuevos hooks dinámicos.
@@ -89,12 +108,28 @@ function AppShell({ user }) {
               )}
               <select
                 className="px-3 py-2 rounded-xl border border-neutral-300 bg-white dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-100"
-                value={lang}
+                value={narrationLang}
                 onChange={(e) => setNarrationMode(e.target.value)}
               >
                 <option value="it">Narración: Italiano</option>
                 <option value="fr">Narración: Francés</option>
                 <option value="en">Narración: Inglés</option>
+              </select>
+              <select
+                className="px-3 py-2 rounded-xl border border-neutral-300 bg-white dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-100"
+                value={vocabLang}
+                onChange={(e)=>{ setVocabLang(e.target.value); setPackName('default'); }}
+              >
+                <option value="it">Vocab: Italiano</option>
+                <option value="fr">Vocab: Francés</option>
+                <option value="en">Vocab: Inglés</option>
+              </select>
+              <select
+                className="px-3 py-2 rounded-xl border border-neutral-300 bg-white dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-100"
+                value={packName}
+                onChange={e=>setPackName(e.target.value)}
+              >
+                {availablePacks.map(p=> <option key={p} value={p}>{`Pack: ${p}`}</option>)}
               </select>
               <Button variant="outline" className="px-3" onClick={resetAll}>Reiniciar progreso</Button>
               <Button variant="outline" className="px-3" onClick={() => setDark(d => !d)}>{dark ? "Modo claro" : "Modo oscuro"}</Button>
@@ -118,7 +153,7 @@ function AppShell({ user }) {
           {tab === "flash" && (
             <Flashcards
               pack={pack}
-              lang={lang}
+              lang={vocabLang}
               onComplete={() => { incrementCompletion("flashcards"); awardXP(20); alert("¡Flashcards listas!"); }}
               onLearned={markLearned}
               progress={progress}
@@ -127,7 +162,7 @@ function AppShell({ user }) {
           {tab === "quiz" && (
             <Quiz
               pack={pack}
-              lang={lang}
+              lang={vocabLang}
               onComplete={(score)=>{ incrementCompletion("quiz"); awardXP(10*score); alert(`Quiz terminado. Puntuación: ${score}`); }}
               onLearned={markLearned}
               awardXP={awardXP}
@@ -136,7 +171,7 @@ function AppShell({ user }) {
           {tab === "match" && (
             <Matching
               pack={pack}
-              lang={lang}
+              lang={vocabLang}
               onComplete={()=>{ incrementCompletion("matching"); awardXP(30); alert("¡Bien! Memoria completada."); }}
               onLearned={markLearned}
             />
@@ -144,7 +179,7 @@ function AppShell({ user }) {
           {tab === "review" && (
             <DailyReview
               pack={pack}
-              lang={lang}
+              lang={vocabLang}
               onComplete={(score)=>{ incrementCompletion("review"); awardXP(12*score); alert(`Revisión completa. Puntos: ${score}`); }}
               awardXP={awardXP}
               progress={progress}
@@ -153,7 +188,7 @@ function AppShell({ user }) {
           {tab === "dialogues" && (
             <MiniDialogues
               pack={pack}
-              lang={lang}
+              lang={vocabLang}
               onComplete={()=>{ incrementCompletion("dialogues"); alert("¡Diálogos completados!"); }}
               awardXP={awardXP}
             />
@@ -161,8 +196,36 @@ function AppShell({ user }) {
           {tab === "game" && (
             <MouseAndCheese
               pack={pack}
-              lang={lang}
+              lang={vocabLang}
               onEatCheese={(w)=>{ incrementCompletion("gameCheeseEaten"); markLearned(w); }}
+            />
+          )}
+          {tab === "packs" && (
+            <PackManager
+              onCreated={({ packName: newPack, lang: newLang }) => {
+                if (newLang === vocabLang) {
+                  setAvailablePacks(prev => prev.includes(newPack) ? prev : [...prev, newPack]);
+                  setPackName(newPack);
+                }
+              }}
+              onMigrated={({ newLang }) => {
+                // Si después de migrar el idioma del pack coincide con vocabLang, refrescamos lista
+                if (newLang === vocabLang) {
+                  fetchAvailablePacks(vocabLang).then(list => {
+                    if (Array.isArray(list)) setAvailablePacks(list);
+                  });
+                }
+              }}
+              onRenamed={({ lang: rLang, fromPack, toPack }) => {
+                if (rLang === vocabLang) {
+                  // Refrescamos packs remotos para asegurar consistencia
+                  fetchAvailablePacks(vocabLang).then(list => {
+                    if (Array.isArray(list)) setAvailablePacks(list);
+                  });
+                  // Si el usuario estaba en el pack renombrado, pasar al nuevo nombre
+                  setPackName(prev => prev === fromPack ? toPack : prev);
+                }
+              }}
             />
           )}
           <section className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -182,7 +245,7 @@ function AppShell({ user }) {
           </section>
         </main>
         <footer className="max-w-6xl mx-auto p-4 text-center text-xs text-neutral-500 dark:text-neutral-400">
-          Hecho con ❤️ para aprender idiomas.
+          Hecho con ❤️ para aprender idiomas. <span className="opacity-60">v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'}</span>
         </footer>
       </div>
     </div>

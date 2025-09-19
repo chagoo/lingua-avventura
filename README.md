@@ -58,6 +58,70 @@ create policy "Public read vocab" on public.vocab_words for select using (true);
 
 El cliente intentará obtener primero desde Supabase, luego desde `VITE_PACKS_API_URL` (si existe) y finalmente desde `packs.json` local.
 
+### Inserción / Gestión de packs desde la UI
+
+La app incluye una pestaña **Packs** (gestor) para crear o actualizar un pack por lección (`pack = 'lessonX'`, por ejemplo `lesson1`, `lesson2`, etc.).
+
+Para permitir inserciones necesitas (además de RLS habilitado) una política de `INSERT` y un índice único opcional para evitar duplicados:
+
+```sql
+-- Política para permitir que usuarios autenticados inserten vocabulario
+create policy if not exists "Authenticated insert vocab" on public.vocab_words
+  for insert
+  with check (auth.role() = 'authenticated');
+
+-- (Opcional) Política para permitir upsert (update) de filas existentes por usuarios autenticados
+create policy if not exists "Authenticated update vocab" on public.vocab_words
+  for update using (auth.role() = 'authenticated')
+  with check (auth.role() = 'authenticated');
+
+-- Índice único para que (lang, pack, source_word) sea la identidad lógica y se haga merge
+create unique index if not exists vocab_words_lang_pack_source_key
+  on public.vocab_words(lang, pack, source_word);
+
+-- (Opcional) Política para permitir DELETE (necesaria para migraciones o renombrados que usen copia+borrado)
+create policy if not exists "Authenticated delete vocab" on public.vocab_words
+  for delete using (auth.role() = 'authenticated');
+```
+
+El formulario acepta líneas en formato:
+
+```
+palabra=traduccion
+otra=another
+# líneas que empiezan con # se ignoran
+```
+
+Al guardar se hace un **upsert** masivo (`on_conflict=lang,pack,source_word`). Si una palabra ya existe se actualiza su traducción.
+
+Límites y validaciones actuales:
+- Máx 300 líneas por envío.
+- Se ignoran líneas vacías o sin `=`.
+- Se deduplican entradas repetidas dentro del mismo formulario.
+- Se puede asignar una dificultad (valor libre) que se guarda en `difficulty`.
+
+### Migrar idioma de un pack
+En la sección "Migrar idioma del pack" puedes mover todas las palabras de un pack existente de un idioma origen (`fromLang`) a otro (`toLang`). Estrategia interna:
+1. Intenta `PATCH` directo actualizando `lang` para todas las filas del pack.
+2. Si hay conflicto (por índice único) hace copia con el nuevo idioma (upsert/merge) y luego borra las filas viejas (requiere política DELETE).
+
+Si una palabra ya existe en el destino, se hace merge (se actualiza `target_word` y `difficulty` si procede).
+
+### Renombrar un pack
+La sección "Renombrar pack" permite cambiar el identificador `pack` dentro del mismo idioma.
+Proceso:
+1. `PATCH` directo (`pack=toPack`).
+2. Si conflicto, copia con el nuevo nombre y borra el antiguo (merge de duplicados similar a migración de idioma).
+
+Tras renombrar, la UI refresca automáticamente la lista de packs y, si estabas viendo el pack viejo, cambia al nuevo.
+
+### Dificultad
+La columna `difficulty` es `smallint`. La UI mapea automáticamente:
+- `easy` → 1
+- `medium` → 2
+- `hard` → 3
+Puedes usar números manualmente si prefieres otra escala.
+
 ## Variables de entorno
 
 Ejemplo de `.env.local` para desarrollo:
@@ -127,3 +191,7 @@ npm run preview
 - Selector de "pack" usando la columna `pack`.
 - Dificultad adaptativa (campo `difficulty`).
 - OAuth providers.
+
+
+## Pth local
+- C:\FILES_\__personal_\apps\lingua-avventura\lingua-avventura

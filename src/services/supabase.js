@@ -208,6 +208,41 @@ async function restFetch(path, options = {}, { retry = true } = {}) {
   }
   return response;
 }
+// Helper genérico para insertar / upsert de filas en una tabla (POST a REST)
+// rows: array de objetos
+// options: { onConflict?: string, prefer?: string }
+async function restUpsert(table, rows, { onConflict, prefer } = {}) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    throw new Error("NO_ROWS");
+  }
+  const params = [];
+  if (onConflict) params.push(`on_conflict=${encodeURIComponent(onConflict)}`);
+  const query = params.length ? `?${params.join('&')}` : '';
+  const response = await restFetch(`/${encodeURIComponent(table)}${query}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Prefer: prefer || 'return=minimal',
+    },
+    body: JSON.stringify(rows),
+  });
+  if (!response.ok) {
+    const data = await response.text();
+    const err = new Error(`UPSERT_FAILED:${response.status}`);
+    err.status = response.status;
+    err.body = data;
+    throw err;
+  }
+  // Si Prefer contiene 'return=representation', devolver JSON
+  if (/return=representation/.test(prefer || '')) {
+    try {
+      return await response.json();
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
 
 function requireConfig() {
   if (!isSupabaseConfigured()) {
@@ -222,6 +257,9 @@ export function isSupabaseConfigured() {
 export function getProgressTableName() {
   return PROGRESS_TABLE;
 }
+
+// Exportamos utilidades REST para otros servicios (e.g., packsApi)
+export { restFetch, restUpsert };
 
 export function onAuth(callback) {
   if (!isSupabaseConfigured()) {
