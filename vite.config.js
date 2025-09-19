@@ -3,5 +3,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '' // <- si usas GitHub Pages con user/REPO, cambia a '/REPO/'
+  // Para desplegar en GitHub Pages en https://<usuario>.github.io/lingua-avventura/
+  // se requiere base '/lingua-avventura/'
+  base: '/lingua-avventura/'
 })

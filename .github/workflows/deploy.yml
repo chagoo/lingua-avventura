@@ -23,11 +23,20 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
-      - run: npm run build
+          cache-dependency-path: lingua-avventura/package-lock.json
+      - name: Install deps
+        working-directory: lingua-avventura
+        run: npm ci
+      - name: Build
+        working-directory: lingua-avventura
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # VITE_PACKS_API_URL: ${{ secrets.VITE_PACKS_API_URL }} # opcional
+        run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist
+          path: lingua-avventura/dist
   deploy:
     needs: build
     runs-on: ubuntu-latest
