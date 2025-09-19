@@ -12,7 +12,8 @@ export default function Flashcards({ pack, onComplete, onLearned, lang, progress
   const current = ordered[idx] || null;
   const frontText = current ? current[lang] : '';
 
-  const onSpeak = ()=>{ if(!frontText) return; speak(frontText, lang); onLearned(frontText) }
+  // Reproducir audio sin marcar como aprendida para no alterar el orden ni saltar a otra palabra
+  const onSpeak = ()=>{ if(!frontText) return; speak(frontText, lang); }
   const next = ()=>{ if(idx < ordered.length-1){ setIdx(idx+1); setFlipped(false) } else { onComplete(); } }
 
   return (

@@ -68,16 +68,33 @@ function AppShell({ user }) {
   const userId = (user?.id || user?.uid || "").toString();
   const shortId = userId ? `${userId.slice(0, 8)}…` : null;
 
-  const tabs = useMemo(() => generateDailyActivities([
-    { value: "dashboard", label: "Inicio" },
-    { value: "flash", label: "Flashcards" },
-    { value: "quiz", label: "Quiz" },
-    { value: "match", label: "Memoria" },
-    { value: "review", label: "Revisión" },
-    { value: "dialogues", label: "Diálogos" },
-    { value: "game", label: "Juego 🧀" },
-    { value: "packs", label: "Packs" },
-  ]), []);
+  // Determinar si el usuario es admin (por ahora: email listado en VITE_ADMIN_EMAILS o email específico hardcodeado)
+  const adminEmails = (import.meta.env?.VITE_ADMIN_EMAILS || 'ing.santiago.v@gmail.com')
+    .split(',')
+    .map(e => e.trim().toLowerCase())
+    .filter(Boolean);
+  const userEmail = (user?.email || '').toLowerCase();
+  const isAdmin = userEmail && adminEmails.includes(userEmail);
+
+  const tabs = useMemo(() => {
+    const base = [
+      { value: "dashboard", label: "Inicio" },
+      { value: "flash", label: "Flashcards" },
+      { value: "quiz", label: "Quiz" },
+      { value: "match", label: "Memoria" },
+      { value: "review", label: "Revisión" },
+      { value: "dialogues", label: "Diálogos" },
+      { value: "game", label: "Juego 🧀" },
+    ];
+    if (isAdmin) base.push({ value: "packs", label: "Packs" });
+    return generateDailyActivities(base);
+  }, [isAdmin]);
+
+  // Si el usuario no es admin y estaba en la pestaña packs, lo redirigimos a dashboard
+  if (!isAdmin && tab === 'packs') {
+    // setTab en render no es ideal, usamos microtask
+    queueMicrotask(() => setTab('dashboard'));
+  }
 
   // Ahora sí: renders tempranos controlados SIN introducir nuevos hooks dinámicos.
   if (loading) return <div style={{ padding:16 }}>Cargando progreso…</div>;
@@ -101,6 +118,7 @@ function AppShell({ user }) {
               <span className="text-2xl">🍝</span>
               <h1 className="text-xl md:text-2xl font-extrabold tracking-tight">Lingua Avventura</h1>
               <Chip>Idiomas para hispanohablantes</Chip>
+              {isAdmin && <Chip>Admin</Chip>}
             </div>
             <div className="flex items-center gap-2">
               {shortId && (
@@ -200,7 +218,7 @@ function AppShell({ user }) {
               onEatCheese={(w)=>{ incrementCompletion("gameCheeseEaten"); markLearned(w); }}
             />
           )}
-          {tab === "packs" && (
+          {tab === "packs" && isAdmin && (
             <PackManager
               onCreated={({ packName: newPack, lang: newLang }) => {
                 if (newLang === vocabLang) {

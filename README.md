@@ -192,6 +192,68 @@ npm run preview
 - Dificultad adaptativa (campo `difficulty`).
 - OAuth providers.
 
+## Administración (acceso a gestión de packs)
+La pestaña **Packs** solo aparece para usuarios cuyo email esté incluido en la variable de entorno `VITE_ADMIN_EMAILS` (lista separada por comas) o, si no se define, para el correo por defecto `ing.santiago.v@gmail.com`.
+
+Ejemplo `.env.local`:
+```
+VITE_ADMIN_EMAILS=ing.santiago.v@gmail.com,otro.admin@dominio.com
+```
+
+En producción (GitHub Pages) define el secret `VITE_ADMIN_EMAILS` con la misma lista.
+
+Si un usuario no admin intenta forzar la pestaña `packs`, el cliente lo redirige a `dashboard` y no renderiza el componente `PackManager`.
+
+### Reforzar con RLS (server-side)
+La protección del frontend evita el acceso casual, pero para impedir inserciones directas vía REST se recomienda restringir `INSERT/UPDATE/DELETE` a una lista de admins en la base de datos.
+
+Ejemplo simple (lista fija de emails incorporada en la política):
+```sql
+create or replace function public.is_admin_email() returns boolean language sql stable as $$
+  select lower(auth.jwt() ->> 'email') = any (array['ing.santiago.v@gmail.com','otro.admin@dominio.com'])
+$$;
+
+-- Reemplaza las políticas previas de insert/update/delete por estas:
+create policy "Admins insert vocab" on public.vocab_words
+  for insert with check (public.is_admin_email());
+
+create policy "Admins update vocab" on public.vocab_words
+  for update using (public.is_admin_email()) with check (public.is_admin_email());
+
+create policy "Admins delete vocab" on public.vocab_words
+  for delete using (public.is_admin_email());
+```
+
+O bien usando una tabla `admins` para gestionarlo sin editar la función:
+```sql
+create table if not exists public.admins (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  email text unique
+);
+
+create or replace function public.is_admin() returns boolean language sql stable as $$
+  select exists (
+    select 1 from public.admins a
+    where a.user_id = auth.uid()
+       or lower(a.email) = lower(auth.jwt() ->> 'email')
+  );
+$$;
+
+create policy "Admins insert vocab" on public.vocab_words
+  for insert with check (public.is_admin());
+create policy "Admins update vocab" on public.vocab_words
+  for update using (public.is_admin()) with check (public.is_admin());
+create policy "Admins delete vocab" on public.vocab_words
+  for delete using (public.is_admin());
+```
+
+Para registrar tu usuario tras el primer login:
+```sql
+insert into public.admins(user_id, email)
+select id, email from auth.users where email = 'ing.santiago.v@gmail.com'
+on conflict (user_id) do nothing;
+```
+
 
 ## Pth local
 - C:\FILES_\__personal_\apps\lingua-avventura\lingua-avventura
