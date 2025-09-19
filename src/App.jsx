@@ -37,9 +37,15 @@ export default function Root() {
 
 // AppShell: contiene todos los demás hooks (orden estable)
 function AppShell({ user }) {
+  // IMPORTANTE: el orden de hooks debe ser estable entre renders.
+  // No colocar returns condicionales antes de declarar todos los hooks.
   const { progress, loading, error, awardXP, incrementCompletion, markLearned, setNarrationMode, resetAll } = useProgress();
   const [tab, setTab] = useState("dashboard");
   const [dark, setDark] = useState(false);
+
+  // Derivamos lang aún si progress no está listo; así evitamos montar un hook extra luego.
+  const lang = progress?.settings?.narrationMode || 'it';
+  const { pack, loading: packLoading, error: packError } = usePack(lang);
 
   const userId = (user?.id || user?.uid || "").toString();
   const shortId = userId ? `${userId.slice(0, 8)}…` : null;
@@ -54,12 +60,10 @@ function AppShell({ user }) {
     { value: "game", label: "Juego 🧀" },
   ]), []);
 
+  // Ahora sí: renders tempranos controlados SIN introducir nuevos hooks dinámicos.
   if (loading) return <div style={{ padding:16 }}>Cargando progreso…</div>;
   if (error)   return <div style={{ padding:16, color:'#b00' }}>Error cargando progreso: {error.message}</div>;
   if (!progress) return <div style={{ padding:16 }}>Sin datos de progreso.</div>;
-
-  const lang = progress.settings?.narrationMode || 'it';
-  const { pack, loading: packLoading, error: packError } = usePack(lang);
 
   // Handlers
   const onFlashcardsComplete = () => { incrementCompletion("flashcards"); awardXP(20); alert("¡Flashcards listas!"); };

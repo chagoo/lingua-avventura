@@ -4,6 +4,21 @@ const SUPABASE_URL = rawUrl ? rawUrl.replace(/\/$/, "") : undefined;
 const SUPABASE_ANON_KEY = env.VITE_SUPABASE_ANON_KEY;
 const PROGRESS_TABLE = env.VITE_SUPABASE_PROGRESS_TABLE || "user_progress";
 
+// Advertencia de placeholder: ayuda a detectar que el usuario aún no sustituyó la URL real
+if (typeof console !== "undefined" && SUPABASE_URL && /tu-proyecto\.supabase\.co/.test(SUPABASE_URL)) {
+  // eslint-disable-next-line no-console
+  console.warn("[supabase] Estás usando el placeholder 'tu-proyecto.supabase.co'. Reemplázalo en .env.local con la Project URL real desde Supabase (Settings → API → Project URL).");
+}
+
+// Validación básica de formato de URL para evitar casos como "https//" o prefijos duplicados
+if (typeof console !== "undefined" && SUPABASE_URL) {
+  const malformed = /localhost:5173\/https/.test(SUPABASE_URL) || /https?:\/\/$/.test(SUPABASE_URL) || /https?:\/\/https?:/.test(SUPABASE_URL);
+  if (malformed) {
+    // eslint-disable-next-line no-console
+    console.warn(`⚠️ [supabase] La URL configurada parece inválida: "${SUPABASE_URL}". Debe verse como: https://<project-ref>.supabase.co (sin barra final extra). Corrige VITE_SUPABASE_URL en .env.local y reinicia 'npm run dev'.`);
+  }
+}
+
 const SESSION_KEY = "lingua_supabase_session_v1";
 
 let currentSession = loadStoredSession();
