@@ -204,6 +204,18 @@ En producción (GitHub Pages) define el secret `VITE_ADMIN_EMAILS` con la misma 
 
 Si un usuario no admin intenta forzar la pestaña `packs`, el cliente lo redirige a `dashboard` y no renderiza el componente `PackManager`.
 
+El frontend ahora intenta primero verificar la tabla `admins` mediante la función `checkIsAdmin()` (consultando `/rest/v1/admins`). Si la tabla existe y contiene el email del usuario, se muestran las pestañas adicionales:
+
+- `Packs` (gestión de vocabulario)
+- `Admin` (nueva) para administrar la lista de administradores desde la UI.
+
+La página `Admin` permite:
+1. Listar admins actuales (muestra `email` y estado).
+2. Agregar un nuevo admin por email (aunque aún no tenga `user_id` hasta su primer login).
+3. Eliminar admins.
+
+Requiere que la tabla `admins` tenga políticas `SELECT/INSERT/DELETE` restringidas a usuarios que ya son admin (usando la función `is_admin()`). La variable `VITE_ADMIN_EMAILS` funciona como fallback rápido en entornos donde aún no has creado la tabla.
+
 ### Reforzar con RLS (server-side)
 La protección del frontend evita el acceso casual, pero para impedir inserciones directas vía REST se recomienda restringir `INSERT/UPDATE/DELETE` a una lista de admins en la base de datos.
 
@@ -257,3 +269,71 @@ on conflict (user_id) do nothing;
 
 ## Pth local
 - C:\FILES_\__personal_\apps\lingua-avventura\lingua-avventura
+
+## Mini diálogos (comprensión y producción)
+
+Actividad enfocada en practicar traducción contextual breve con dos modos intercambiables que se recuerdan entre sesiones.
+
+### Modos
+- Comprensión ("mcq"): Se muestra la frase/palabra en el idioma objetivo (L2) y debes escoger su traducción correcta en español entre 4 opciones (1 correcta + 3 distractores).
+- Producción ("produce"): Se muestra la frase/palabra en español y debes escribirla en el idioma objetivo. Incluye validación flexible (fuzzy) para tolerar pequeños errores tipográficos.
+
+La preferencia persistente del modo se guarda en `progress.settings.dialoguesMode`.
+
+### Generación de turnos
+Se selecciona un subconjunto barajado del pack (máx ~8 ítems por sesión rápida) y se construyen turnos. Cada fallo en un turno lo envía a una cola de reintentos que se procesa al terminar la primera pasada (espaciado inmediato para reforzar). Un turno marcado como reintento se etiqueta visualmente.
+
+### Racha y mejores rachas
+Cada acierto consecutivo incrementa la racha actual. Un fallo la reinicia. Se guarda `bestStreak` por modo (comprensión y producción) de forma independiente en `progress.stats.dialogues[modo].bestStreak`.
+
+### Métricas acumuladas
+Por modo se registran:
+- `correct`: total de aciertos.
+- `attempts`: intentos totales (incluye fallos y aciertos; los aciertos en reintento también suman attempts).
+- `bestStreak`: mejor racha histórica modo-específica.
+- `fuzzy`: (solo producción) número de aciertos aceptados por tolerancia de un error (ver abajo).
+
+Estructura ejemplo en el progreso:
+```json
+"stats": {
+  "dialogues": {
+    "mcq": { "correct": 40, "attempts": 55, "bestStreak": 9 },
+    "produce": { "correct": 18, "attempts": 27, "bestStreak": 5, "fuzzy": 3 }
+  }
+}
+```
+
+### Normalización de respuestas (producción)
+Antes de comparar se aplica:
+1. `toLowerCase()`
+2. Normalización Unicode NFD removiendo diacríticos (`áéíóúüñ` → base equivalente)
+3. Eliminación de caracteres no alfanuméricos relevantes
+4. Colapso de espacios múltiples y `trim()`
+
+### Tolerancia fuzzy (Levenshtein)
+Si la respuesta normalizada no es idéntica pero la longitud esperada > 4 y la distancia de Levenshtein = 1, se considera correcta "fuzzy" (≈ error de una letra). Estos casos suman XP reducido y se contabilizan en `fuzzy`.
+
+### Reintentos
+Un fallo envía el turno a la cola de reintentos con bandera `retry: true`. Al terminar la primera ronda se reemplaza la lista de turnos por la cola y se continúa hasta vaciarla.
+
+### Reglas de XP
+Por turno (antes de bonus final):
+- Comprensión: acierto primer intento +4 XP; acierto en reintento +1 XP.
+- Producción: acierto primer intento +6 XP; acierto en reintento +2 XP.
+- Penalización fuzzy (producción): primer intento ≈60% del valor base (mín 2); reintento ≈50% (mín 1).
+- Bonus de racha: en aciertos de primer intento se añade `min(4, floor(racha/3))` XP.
+
+Al finalizar la sesión:
+- Bonus de finalización proporcional a aciertos (`≈ 0.4 * correctCount`, mínimo 2).
+- Bonus adicional por mejor racha de la sesión (`≈ bestStreak * 0.5`, máx 10).
+
+### Persistencia y optimización (debounce)
+Las mutaciones de progreso dentro de la actividad se acumulan en memoria y se guardan con un debounce (~5s) para evitar múltiples escrituras seguidas hacia Supabase. Al cerrar la actividad (fase terminada) se fuerza un flush. Esto reduce picos de peticiones y previene errores de recursos cuando hay muchas respuestas rápidas.
+
+### Extensiones futuras previstas
+- Retry con backoff exponencial si el guardado falla (pendiente).
+- Fallback offline: cache temporal en `localStorage` y reintento al recuperar conectividad (pendiente).
+
+### Personalización rápida
+Puedes ajustar valores de XP, longitud mínima para fuzzy o número máximo de turnos modificando el componente `MiniDialogues.jsx` (buscar los comentarios y constantes en la parte superior del archivo).
+

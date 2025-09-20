@@ -261,6 +261,79 @@ export function getProgressTableName() {
 // Exportamos utilidades REST para otros servicios (e.g., packsApi)
 export { restFetch, restUpsert };
 
+// Comprueba si el usuario actual es admin consultando la tabla public.admins
+// Estrategia: si existe una variable VITE_ADMIN_EMAILS y coincide, retorna true inmediatamente (fallback rápido)
+// Luego intenta consultar la tabla admins vía REST: /admins?select=user_id,email&...limit=1
+export async function checkIsAdmin() {
+  if (!isSupabaseConfigured()) return false;
+  const session = await ensureValidSession();
+  const email = (session?.user?.email || '').toLowerCase();
+  if (!email) return false;
+  const envAdmins = (env.VITE_ADMIN_EMAILS || '')
+    .split(',')
+    .map(e => e.trim().toLowerCase())
+    .filter(Boolean);
+  if (envAdmins.length && envAdmins.includes(email)) return true;
+  try {
+    const q = `/admins?select=user_id,email&email=eq.${encodeURIComponent(email)}&limit=1`;
+    const res = await restFetch(q, { method: 'GET', headers: { Accept: 'application/json' } });
+    if (!res.ok) {
+      try {
+        const txt = await res.text();
+        console.warn('[admins] status', res.status, 'body:', txt);
+      } catch {}
+      return false;
+    }
+    const data = await res.json();
+    return Array.isArray(data) && data.length > 0;
+  } catch (e) {
+    console.warn('[admins] error', e);
+    return false;
+  }
+}
+
+// Lista admins (requiere política select abierta a admins al menos)
+export async function listAdmins() {
+  if (!isSupabaseConfigured()) return [];
+  try {
+    const res = await restFetch(`/admins?select=user_id,email&order=email.asc`, { method: 'GET', headers: { Accept: 'application/json' } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch { return []; }
+}
+
+// Agrega admin por email (sin user_id si aún no ha iniciado sesión)
+export async function addAdminEmail(email) {
+  if (!isSupabaseConfigured()) throw new Error('NOT_CONFIGURED');
+  const clean = (email || '').trim().toLowerCase();
+  if (!clean) throw new Error('EMAIL_REQUIRED');
+  const row = { email: clean };
+  const res = await restFetch('/admins', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Prefer: 'return=representation' },
+    body: JSON.stringify([row])
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`ADD_FAILED:${res.status}:${txt}`);
+  }
+  try { return await res.json(); } catch { return []; }
+}
+
+// Elimina admin por email
+export async function removeAdminEmail(email) {
+  if (!isSupabaseConfigured()) throw new Error('NOT_CONFIGURED');
+  const clean = (email || '').trim().toLowerCase();
+  if (!clean) throw new Error('EMAIL_REQUIRED');
+  const res = await restFetch(`/admins?email=eq.${encodeURIComponent(clean)}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`REMOVE_FAILED:${res.status}:${txt}`);
+  }
+  return true;
+}
+
 export function onAuth(callback) {
   if (!isSupabaseConfigured()) {
     console.warn("[supabase] Configuración incompleta. No se puede iniciar la autenticación.");

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { onAuth, logout } from "./services/supabase";
+import { onAuth, logout, checkIsAdmin } from "./services/supabase";
 import LoginForm from "./components/LoginForm";
 
 import { useProgress } from "./hooks/useProgress";
@@ -18,6 +18,7 @@ import MiniDialogues from "./components/MiniDialogues";
 import Button from "./components/Button";
 import { generateDailyActivities } from "./utils/dailyActivities";
 import PackManager from "./components/PackManager";
+import AdminManager from "./components/AdminManager";
 
 // Root: maneja auth y solo monta AppShell cuando hay usuario
 export default function Root() {
@@ -41,9 +42,11 @@ export default function Root() {
 function AppShell({ user }) {
   // IMPORTANTE: el orden de hooks debe ser estable entre renders.
   // No colocar returns condicionales antes de declarar todos los hooks.
-  const { progress, loading, error, awardXP, incrementCompletion, markLearned, setNarrationMode, resetAll } = useProgress();
+  const { progress, loading, error, awardXP, incrementCompletion, markLearned, setNarrationMode, resetAll, setThemeMode } = useProgress();
   const [tab, setTab] = useState("dashboard");
-  const [dark, setDark] = useState(false);
+  // Nuevo: modo de tema ('light' | 'dark' | 'auto') y preferencia del sistema
+  const [themeMode, setThemeModeState] = useState('auto');
+  const [systemPrefersDark, setSystemPrefersDark] = useState(false);
   const [packName, setPackName] = useState('default');
   const [availablePacks, setAvailablePacks] = useState(['default']);
   // Idioma para narración (guardado en progreso) y uno independiente para vocabulario
@@ -68,13 +71,12 @@ function AppShell({ user }) {
   const userId = (user?.id || user?.uid || "").toString();
   const shortId = userId ? `${userId.slice(0, 8)}…` : null;
 
-  // Determinar si el usuario es admin (por ahora: email listado en VITE_ADMIN_EMAILS o email específico hardcodeado)
-  const adminEmails = (import.meta.env?.VITE_ADMIN_EMAILS || 'ing.santiago.v@gmail.com')
-    .split(',')
-    .map(e => e.trim().toLowerCase())
-    .filter(Boolean);
-  const userEmail = (user?.email || '').toLowerCase();
-  const isAdmin = userEmail && adminEmails.includes(userEmail);
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    let active = true;
+    checkIsAdmin().then(v => { if (active) setIsAdmin(!!v); });
+    return () => { active = false; };
+  }, [user?.id, user?.email]);
 
   const tabs = useMemo(() => {
     const base = [
@@ -86,20 +88,14 @@ function AppShell({ user }) {
       { value: "dialogues", label: "Diálogos" },
       { value: "game", label: "Juego 🧀" },
     ];
-    if (isAdmin) base.push({ value: "packs", label: "Packs" });
+    if (isAdmin) {
+      base.push({ value: "packs", label: "Packs" });
+      base.push({ value: "admin", label: "Admin" });
+    }
     return generateDailyActivities(base);
   }, [isAdmin]);
 
-  // Si el usuario no es admin y estaba en la pestaña packs, lo redirigimos a dashboard
-  if (!isAdmin && tab === 'packs') {
-    // setTab en render no es ideal, usamos microtask
-    queueMicrotask(() => setTab('dashboard'));
-  }
-
-  // Ahora sí: renders tempranos controlados SIN introducir nuevos hooks dinámicos.
-  if (loading) return <div style={{ padding:16 }}>Cargando progreso…</div>;
-  if (error)   return <div style={{ padding:16, color:'#b00' }}>Error cargando progreso: {error.message}</div>;
-  if (!progress) return <div style={{ padding:16 }}>Sin datos de progreso.</div>;
+  // NOTA: No retornamos todavía (loading/error) para no alterar orden de hooks.
 
   // Handlers
   const onFlashcardsComplete = () => { incrementCompletion("flashcards"); awardXP(20); alert("¡Flashcards listas!"); };
@@ -108,6 +104,65 @@ function AppShell({ user }) {
   const onReviewComplete = (score) => { incrementCompletion("review"); awardXP(12 * score); alert(`Revisión completa. Puntos: ${score}`); };
   const onDialoguesComplete = () => { incrementCompletion("dialogues"); alert("¡Diálogos completados!"); };
   const onEatCheese = (word) => { incrementCompletion("gameCheeseEaten"); markLearned(word); };
+
+  // Detectar preferencia del sistema (para modo auto)
+  useEffect(() => {
+    try {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      const handler = () => setSystemPrefersDark(mq.matches);
+      handler();
+      mq.addEventListener('change', handler);
+      return () => mq.removeEventListener('change', handler);
+    } catch {}
+  }, []);
+
+  // Sincronizar una sola vez desde progreso o localStorage al montar / cuando llegue progreso
+  useEffect(() => {
+    if (!progress) return; // esperar
+    const remote = progress.settings?.theme;
+    const stored = localStorage.getItem('la_theme');
+    // Prioridad: remoto -> stored -> auto
+    const desired = remote || stored || 'auto';
+    if (desired !== themeMode) setThemeModeState(desired);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [progress?.settings?.theme]);
+
+  // Persistir cambios locales (localStorage + remoto si difiere)
+  useEffect(() => {
+    // Guardar sólo si cambió realmente el modo (evita loop)
+    const stored = localStorage.getItem('la_theme');
+    if (stored !== themeMode) localStorage.setItem('la_theme', themeMode);
+    const remote = progress?.settings?.theme;
+    if (remote && remote !== themeMode) {
+      // Evitar spam: lanzar actualización pero no re-sincronizar hasta que remoto cambie
+      setThemeMode(themeMode);
+    }
+  }, [themeMode]);
+
+  // Calcular booleano dark efectivo
+  const dark = themeMode === 'dark' || (themeMode === 'auto' && systemPrefersDark);
+
+  // Atajo de teclado: tecla "d" para togglear tema (ignorar si se escribe en input / textarea / editable)
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key.toLowerCase() === 'd') {
+        const tag = (e.target?.tagName || '').toLowerCase();
+        const editable = e.target?.isContentEditable;
+        if (['input','textarea','select'].includes(tag) || editable) return;
+        setThemeModeState(m => m === 'dark' ? 'light' : 'dark');
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  // Safe redirection post-hooks
+  if (!isAdmin && (tab === 'packs' || tab === 'admin')) {
+    queueMicrotask(() => setTab('dashboard'));
+  }
+  if (loading) return <div style={{ padding:16 }}>Cargando progreso…</div>;
+  if (error)   return <div style={{ padding:16, color:'#b00' }}>Error cargando progreso: {error.message}</div>;
+  if (!progress) return <div style={{ padding:16 }}>Sin datos de progreso.</div>;
 
   return (
     <div className={dark ? "dark" : ""}>
@@ -149,8 +204,47 @@ function AppShell({ user }) {
               >
                 {availablePacks.map(p=> <option key={p} value={p}>{`Pack: ${p}`}</option>)}
               </select>
+              {/* Chip de progreso del pack actual */}
+              {pack && Array.isArray(pack) && pack.length > 0 && (
+                (()=>{
+                  const total = pack.length;
+                  const learned = (progress?.wordsLearned) ? pack.filter(w => {
+                    const key = w[vocabLang];
+                    return key && progress.wordsLearned[key];
+                  }).length : 0;
+                  const pct = Math.round((learned/total)*100);
+                  return <Chip>{learned}/{total} ({pct}%)</Chip>;
+                })()
+              )}
               <Button variant="outline" className="px-3" onClick={resetAll}>Reiniciar progreso</Button>
-              <Button variant="outline" className="px-3" onClick={() => setDark(d => !d)}>{dark ? "Modo claro" : "Modo oscuro"}</Button>
+              <button
+                type="button"
+                onClick={() => setThemeModeState(m => m === 'dark' ? 'light' : 'dark')}
+                aria-label={dark ? 'Cambiar a modo claro (atajo: d)' : 'Cambiar a modo oscuro (atajo: d)'}
+                className="group w-10 h-10 inline-flex items-center justify-center rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-600 transition-colors relative overflow-hidden"
+                title={dark ? 'Modo claro (tecla d)' : 'Modo oscuro (tecla d)'}
+              >
+                <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-10 transition-opacity bg-amber-400 dark:bg-neutral-50 mix-blend-multiply" />
+                <span className={`transition-transform duration-300 ease-out ${dark ? 'rotate-0 scale-100' : 'rotate-180 scale-90'}`}>
+                  {dark ? (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-400 drop-shadow-sm">
+                      <circle cx="12" cy="12" r="5" />
+                      <line x1="12" y1="1" x2="12" y2="3" />
+                      <line x1="12" y1="21" x2="12" y2="23" />
+                      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                      <line x1="1" y1="12" x2="3" y2="12" />
+                      <line x1="21" y1="12" x2="23" y2="12" />
+                      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                    </svg>
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-neutral-700 dark:text-neutral-200 drop-shadow-sm">
+                      <path d="M21 12.79A9 9 0 0 1 11.21 3 7 7 0 1 0 21 12.79z" />
+                    </svg>
+                  )}
+                </span>
+              </button>
               <Button variant="ghost" className="px-3" onClick={logout}>Salir</Button>
             </div>
           </div>
@@ -175,6 +269,18 @@ function AppShell({ user }) {
               onComplete={() => { incrementCompletion("flashcards"); awardXP(20); alert("¡Flashcards listas!"); }}
               onLearned={markLearned}
               progress={progress}
+              onResetPack={() => {
+                if (!pack || !Array.isArray(pack)) return;
+                // resetPackProgress expuesto por hook? si no, usamos markLearned reverse (ya tenemos helper en hook?)
+                // Asumimos que useProgress expone resetPackProgress si lo añadimos previamente.
+                if (typeof progress?.resetPackProgress === 'function') {
+                  progress.resetPackProgress(vocabLang, pack.map(w=>w[vocabLang]).filter(Boolean));
+                } else if (typeof window.resetPackProgress === 'function') {
+                  window.resetPackProgress(vocabLang, pack.map(w=>w[vocabLang]).filter(Boolean));
+                } else {
+                  // fallback: reconstruir state manual no disponible aquí.
+                }
+              }}
             />
           )}
           {tab === "quiz" && (
@@ -245,6 +351,9 @@ function AppShell({ user }) {
                 }
               }}
             />
+          )}
+          {tab === "admin" && isAdmin && (
+            <AdminManager />
           )}
           <section className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card title="Consejo del día" subtitle="Hábitos que funcionan">

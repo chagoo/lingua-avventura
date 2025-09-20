@@ -24,7 +24,7 @@ export const defaultState = {
   xp: 0,
   wordsLearned: {},
   reviews: {},
-  settings: { narrationMode: "it" },
+  settings: { narrationMode: "it", theme: "auto" },
   completions: {
     flashcards: 0,
     quiz: 0,
@@ -134,7 +134,12 @@ export async function createDataService(){
       return s;
     },
     async markLearned(s, wordId){
-      s.wordsLearned[wordId] = (s.wordsLearned[wordId]||0) + 1;
+      const prev = s.wordsLearned[wordId] || 0;
+      s.wordsLearned[wordId] = prev + 1;
+      if (prev === 0) {
+        // XP bonus por aprender nueva palabra (ajustable)
+        s.xp += 5;
+      }
       s.lastActive = todayStr();
       await be.save(s);
       return s;
@@ -144,10 +149,26 @@ export async function createDataService(){
       await be.save(s);
       return s;
     },
+    async setThemeMode(s, theme){
+      // theme: 'dark' | 'light' | 'auto'
+      if(!['dark','light','auto'].includes(theme)) return s;
+      s.settings.theme = theme;
+      await be.save(s);
+      return s;
+    },
     async resetAll(){
       const fresh = structuredClone(defaultState);
       await be.save(fresh);
       return fresh;
     },
+    async resetPackProgress(s, lang, packWords){
+      if (!Array.isArray(packWords)) return s;
+      for (const w of packWords){
+        const key = w[lang];
+        if (key && s.wordsLearned[key]) delete s.wordsLearned[key];
+      }
+      await be.save(s);
+      return s;
+    }
   };
 }
