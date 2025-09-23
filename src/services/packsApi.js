@@ -4,13 +4,63 @@
 // 3) JSON local (fallback offline)
 
 import { getPack as getLocalPack, getAvailableLanguages as getLocalLangs } from "../data/packs";
-import { restUpsert, isSupabaseConfigured, restFetch, getSupabaseCredentials } from './supabase';
+import { restUpsert, isSupabaseConfigured, restFetch, getSupabaseCredentials } from "./supabase";
+
+function isLoopbackHostname(value) {
+  if (!value) return false;
+  const host = String(value).toLowerCase().replace(/^\[/, "").replace(/\]$/, "");
+  return (
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "0.0.0.0" ||
+    host === "::1" ||
+    host.endsWith(".localhost")
+  );
+}
+
+function getBrowserHostname() {
+  try {
+    if (typeof window !== "undefined" && window?.location?.hostname) {
+      return window.location.hostname;
+    }
+  } catch {
+    /* noop */
+  }
+  return null;
+}
+
+function warn(message, ...rest) {
+  if (typeof console !== "undefined" && typeof console.warn === "function") {
+    console.warn(message, ...rest);
+  }
+}
 
 function buildRestBaseUrl() {
   if (typeof import.meta !== "undefined" && import.meta.env?.VITE_PACKS_API_URL) {
     const envUrl = String(import.meta.env.VITE_PACKS_API_URL || "").trim();
     if (!envUrl) return null;
-    return envUrl.endsWith("/") ? envUrl.slice(0, -1) : envUrl;
+    const normalized = envUrl.endsWith("/") ? envUrl.slice(0, -1) : envUrl;
+
+    if (/^https?:\/\//i.test(normalized)) {
+      try {
+        const { hostname } = new URL(normalized);
+        if (isLoopbackHostname(hostname)) {
+          const currentHost = getBrowserHostname();
+          if (currentHost && !isLoopbackHostname(currentHost)) {
+            warn(
+              `[packsApi] Ignorando VITE_PACKS_API_URL="${envUrl}" porque la aplicación no se ejecuta en localhost. ` +
+                "Quita la variable o usa una URL accesible públicamente."
+            );
+            return null;
+          }
+        }
+      } catch (err) {
+        warn(`[packsApi] VITE_PACKS_API_URL parece inválida: "${envUrl}".`, err);
+        return null;
+      }
+    }
+
+    return normalized;
   }
   return null;
 }
