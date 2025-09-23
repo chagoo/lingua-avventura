@@ -6,6 +6,13 @@
 import { getPack as getLocalPack, getAvailableLanguages as getLocalLangs } from "../data/packs";
 import { restUpsert, isSupabaseConfigured, restFetch, getSupabaseCredentials } from "./supabase";
 
+const ALLOWED_DEPLOY_HOSTS = new Set(["chagoo.github.io"]);
+
+function isAllowedDeployHost(value) {
+  if (!value) return false;
+  return ALLOWED_DEPLOY_HOSTS.has(String(value).toLowerCase());
+}
+
 function isLoopbackHostname(value) {
   if (!value) return false;
   const host = String(value).toLowerCase().replace(/^\[/, "").replace(/\]$/, "");
@@ -50,28 +57,40 @@ function buildRestBaseUrl() {
     if (!envUrl) return null;
     const normalized = envUrl.endsWith("/") ? envUrl.slice(0, -1) : envUrl;
 
-    const allowLoopbackOverride = isTruthyEnv(import.meta.env.VITE_PACKS_API_ALLOW_LOOPBACK);
+    const isDevEnv = Boolean(import.meta.env?.DEV);
+    const currentHost = getBrowserHostname();
+    const allowLoopbackOverride =
+      isDevEnv && isTruthyEnv(import.meta.env.VITE_PACKS_API_ALLOW_LOOPBACK);
+
+    if (!isDevEnv && currentHost && !isAllowedDeployHost(currentHost)) {
+      return null;
+    }
 
     if (/^https?:\/\//i.test(normalized)) {
       try {
         const { hostname } = new URL(normalized);
         if (isLoopbackHostname(hostname)) {
-          const currentHost = getBrowserHostname();
           if (currentHost && !isLoopbackHostname(currentHost)) {
             if (!allowLoopbackOverride) {
-              warn(
-                `[packsApi] Ignorando VITE_PACKS_API_URL="${envUrl}" porque la aplicación no se ejecuta en localhost. ` +
-                  "Quita la variable o usa una URL accesible públicamente."
-              );
+              if (isDevEnv) {
+                warn(
+                  `[packsApi] Ignorando VITE_PACKS_API_URL="${envUrl}" porque la aplicación no se ejecuta en localhost. ` +
+                    "Quita la variable o usa una URL accesible públicamente."
+                );
+              }
               return null;
             }
-            warn(
-              `[packsApi] VITE_PACKS_API_ALLOW_LOOPBACK activo: usando URL local "${envUrl}" aun cuando la aplicación no se ejecuta en localhost.`
-            );
+            if (isDevEnv) {
+              warn(
+                `[packsApi] VITE_PACKS_API_ALLOW_LOOPBACK activo: usando URL local "${envUrl}" aun cuando la aplicación no se ejecuta en localhost.`
+              );
+            }
           }
         }
       } catch (err) {
-        warn(`[packsApi] VITE_PACKS_API_URL parece inválida: "${envUrl}".`, err);
+        if (isDevEnv) {
+          warn(`[packsApi] VITE_PACKS_API_URL parece inválida: "${envUrl}".`, err);
+        }
         return null;
       }
     }
