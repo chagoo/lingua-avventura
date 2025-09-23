@@ -24,9 +24,32 @@ import AdminManager from "./components/AdminManager";
 const LOCAL_USER = { id: "local-user", email: "offline@lingua.local" };
 
 export default function Root() {
-  const supabaseEnabled = isSupabaseConfigured();
+  const [supabaseEnabled, setSupabaseEnabled] = useState(() => isSupabaseConfigured());
   const [user, setUser] = useState(() => (supabaseEnabled ? null : LOCAL_USER));
   const [checking, setChecking] = useState(supabaseEnabled);
+
+  useEffect(() => {
+    if (supabaseEnabled) return () => {};
+    let attempts = 0;
+    const maxAttempts = 20; // ~10s (20 * 500ms)
+    let cancelled = false;
+    const timer = setInterval(() => {
+      if (cancelled) return;
+      attempts += 1;
+      if (isSupabaseConfigured()) {
+        clearInterval(timer);
+        if (!cancelled) setSupabaseEnabled(true);
+        return;
+      }
+      if (attempts >= maxAttempts) {
+        clearInterval(timer);
+      }
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [supabaseEnabled]);
 
   useEffect(() => {
     if (!supabaseEnabled) {
@@ -34,6 +57,8 @@ export default function Root() {
       setUser(LOCAL_USER);
       return () => {};
     }
+    setChecking(true);
+    setUser(null);
     return onAuth(u => {
       setUser(u);
       setChecking(false);

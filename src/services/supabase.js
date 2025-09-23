@@ -32,24 +32,37 @@ function normalizeEnvValue(value) {
   return trimmed;
 }
 
-const rawUrl = normalizeEnvValue(readRuntimeEnv("VITE_SUPABASE_URL"));
-const SUPABASE_URL = rawUrl ? rawUrl.replace(/\/$/, "") : undefined;
-const SUPABASE_ANON_KEY = normalizeEnvValue(readRuntimeEnv("VITE_SUPABASE_ANON_KEY"));
-const PROGRESS_TABLE = normalizeEnvValue(readRuntimeEnv("VITE_SUPABASE_PROGRESS_TABLE")) || "user_progress";
+let warnedPlaceholderForUrl = null;
+let warnedMalformedForUrl = null;
 
-// Advertencia de placeholder: ayuda a detectar que el usuario aún no sustituyó la URL real
-if (typeof console !== "undefined" && SUPABASE_URL && /tu-proyecto\.supabase\.co/.test(SUPABASE_URL)) {
-  // eslint-disable-next-line no-console
-  console.warn("[supabase] Estás usando el placeholder 'tu-proyecto.supabase.co'. Reemplázalo en .env.local con la Project URL real desde Supabase (Settings → API → Project URL).");
-}
+function resolveSupabaseEnv() {
+  const rawUrl = normalizeEnvValue(readRuntimeEnv("VITE_SUPABASE_URL"));
+  const url = rawUrl ? rawUrl.replace(/\/$/, "") : undefined;
+  const anonKey = normalizeEnvValue(readRuntimeEnv("VITE_SUPABASE_ANON_KEY"));
+  const progressTable = normalizeEnvValue(readRuntimeEnv("VITE_SUPABASE_PROGRESS_TABLE")) || "user_progress";
 
-// Validación básica de formato de URL para evitar casos como "https//" o prefijos duplicados
-if (typeof console !== "undefined" && SUPABASE_URL) {
-  const malformed = /localhost:5173\/https/.test(SUPABASE_URL) || /https?:\/\/$/.test(SUPABASE_URL) || /https?:\/\/https?:/.test(SUPABASE_URL);
-  if (malformed) {
-    // eslint-disable-next-line no-console
-    console.warn(`⚠️ [supabase] La URL configurada parece inválida: "${SUPABASE_URL}". Debe verse como: https://<project-ref>.supabase.co (sin barra final extra). Corrige VITE_SUPABASE_URL en .env.local y reinicia 'npm run dev'.`);
+  // Advertencias solamente una vez por URL detectada
+  if (typeof console !== "undefined" && url) {
+    if (warnedPlaceholderForUrl !== url && /tu-proyecto\.supabase\.co/.test(url)) {
+      warnedPlaceholderForUrl = url;
+      // eslint-disable-next-line no-console
+      console.warn("[supabase] Estás usando el placeholder 'tu-proyecto.supabase.co'. Reemplázalo en .env.local con la Project URL real desde Supabase (Settings → API → Project URL).");
+    }
+
+    const malformed =
+      /localhost:5173\/https/.test(url) ||
+      /https?:\/\/$/.test(url) ||
+      /https?:\/\/https?:/.test(url);
+    if (malformed && warnedMalformedForUrl !== url) {
+      warnedMalformedForUrl = url;
+      // eslint-disable-next-line no-console
+      console.warn(
+        `⚠️ [supabase] La URL configurada parece inválida: "${url}". Debe verse como: https://<project-ref>.supabase.co (sin barra final extra). Corrige VITE_SUPABASE_URL en .env.local y reinicia 'npm run dev'.`
+      );
+    }
   }
+
+  return { url, anonKey, progressTable };
 }
 
 const SESSION_KEY = "lingua_supabase_session_v1";
@@ -138,25 +151,29 @@ function normalizeSession(payload) {
 }
 
 function authHeaders() {
+  const { anonKey } = requireConfig();
   return {
-    apikey: SUPABASE_ANON_KEY,
+    apikey: anonKey,
     "Content-Type": "application/json",
   };
 }
 
 function restHeaders(token) {
+  const { anonKey } = requireConfig();
   return {
-    apikey: SUPABASE_ANON_KEY,
+    apikey: anonKey,
     Authorization: `Bearer ${token}`,
   };
 }
 
 function authUrl(path) {
-  return `${SUPABASE_URL}/auth/v1${path}`;
+  const { url } = requireConfig();
+  return `${url}/auth/v1${path}`;
 }
 
 function restUrl(path) {
-  return `${SUPABASE_URL}/rest/v1${path}`;
+  const { url } = requireConfig();
+  return `${url}/rest/v1${path}`;
 }
 
 async function parseJson(response) {
@@ -278,30 +295,34 @@ async function restUpsert(table, rows, { onConflict, prefer } = {}) {
 }
 
 function requireConfig() {
-  if (!isSupabaseConfigured()) {
+  const cfg = resolveSupabaseEnv();
+  if (!cfg.url || !cfg.anonKey) {
     throw new Error("Supabase no está configurado. Define VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.");
   }
+  return cfg;
 }
 
 export function isSupabaseConfigured() {
-  return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+  const cfg = resolveSupabaseEnv();
+  return Boolean(cfg.url && cfg.anonKey);
 }
 
 export function getProgressTableName() {
-  return PROGRESS_TABLE;
+  return resolveSupabaseEnv().progressTable;
 }
 
 export function getSupabaseUrl() {
-  return SUPABASE_URL;
+  return resolveSupabaseEnv().url;
 }
 
 export function getSupabaseAnonKey() {
-  return SUPABASE_ANON_KEY;
+  return resolveSupabaseEnv().anonKey;
 }
 
 export function getSupabaseCredentials() {
-  if (!isSupabaseConfigured()) return null;
-  return { url: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY };
+  const cfg = resolveSupabaseEnv();
+  if (!cfg.url || !cfg.anonKey) return null;
+  return { url: cfg.url, anonKey: cfg.anonKey };
 }
 
 // Exportamos utilidades REST para otros servicios (e.g., packsApi)
