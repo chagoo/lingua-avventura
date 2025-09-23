@@ -6,14 +6,13 @@
 import { getPack as getLocalPack, getAvailableLanguages as getLocalLangs } from "../data/packs";
 import { restUpsert, isSupabaseConfigured, restFetch } from './supabase';
 
-const DEFAULT_BASE_URL = "http://localhost:4000";
-
 function buildRestBaseUrl() {
   if (typeof import.meta !== "undefined" && import.meta.env?.VITE_PACKS_API_URL) {
-    const envUrl = import.meta.env.VITE_PACKS_API_URL;
+    const envUrl = String(import.meta.env.VITE_PACKS_API_URL || "").trim();
+    if (!envUrl) return null;
     return envUrl.endsWith("/") ? envUrl.slice(0, -1) : envUrl;
   }
-  return DEFAULT_BASE_URL;
+  return null;
 }
 
 const API_BASE_URL = buildRestBaseUrl();
@@ -51,6 +50,9 @@ async function fetchFromSupabase(lang, packName, { signal } = {}) {
 }
 
 async function fetchFromRestApi(lang, packName, { signal } = {}) {
+  if (!API_BASE_URL) {
+    throw new Error("REST_NOT_CONFIGURED");
+  }
   const response = await fetch(`${API_BASE_URL}/packs/${encodeURIComponent(lang)}`, {
     signal,
     headers: { Accept: "application/json" },
@@ -80,7 +82,12 @@ export async function fetchPack(lang, { packName = 'default', signal } = {}) {
     // REST actual no soporta packName; podría ignorarse o implementarse en el futuro
     return await fetchFromRestApi(lang, packName, { signal });
   } catch (e) {
-    if (import.meta.env?.DEV && e.name !== 'AbortError' && !/aborted/i.test(e.message)) {
+    if (
+      import.meta.env?.DEV &&
+      e.name !== 'AbortError' &&
+      !/aborted/i.test(e.message) &&
+      e.message !== 'REST_NOT_CONFIGURED'
+    ) {
       console.warn("[packsApi] REST API fallback ->", e.message);
     }
   }
@@ -108,6 +115,9 @@ async function fetchSupabaseLanguages({ signal } = {}) {
 }
 
 async function fetchRestLanguages({ signal } = {}) {
+  if (!API_BASE_URL) {
+    throw new Error("REST_NOT_CONFIGURED");
+  }
   const response = await fetch(`${API_BASE_URL}/packs`, {
     signal,
     headers: { Accept: "application/json" },
@@ -132,7 +142,12 @@ export async function fetchAvailableLanguages({ signal } = {}) {
   }
   // REST API
   try { return await fetchRestLanguages({ signal }); } catch (e) {
-    if (import.meta.env?.DEV && e.name !== 'AbortError' && !/aborted/i.test(e.message)) {
+    if (
+      import.meta.env?.DEV &&
+      e.name !== 'AbortError' &&
+      !/aborted/i.test(e.message) &&
+      e.message !== 'REST_NOT_CONFIGURED'
+    ) {
       console.warn("[packsApi] REST langs fallback ->", e.message);
     }
   }
