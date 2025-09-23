@@ -32,6 +32,14 @@ function normalizeEnvValue(value) {
   return trimmed;
 }
 
+function readBackendPreference() {
+  const raw = normalizeEnvValue(readRuntimeEnv("VITE_BACKEND"));
+  if (!raw) return "";
+  const normalized = raw.toLowerCase();
+  if (normalized === "supabase" || normalized === "local") return normalized;
+  return "";
+}
+
 let warnedPlaceholderForUrl = null;
 let warnedMalformedForUrl = null;
 
@@ -303,6 +311,7 @@ function requireConfig() {
 }
 
 export function isSupabaseConfigured() {
+  if (isBackendForcedLocal()) return false;
   const cfg = resolveSupabaseEnv();
   return Boolean(cfg.url && cfg.anonKey);
 }
@@ -323,6 +332,18 @@ export function getSupabaseCredentials() {
   const cfg = resolveSupabaseEnv();
   if (!cfg.url || !cfg.anonKey) return null;
   return { url: cfg.url, anonKey: cfg.anonKey };
+}
+
+export function getBackendPreference() {
+  return readBackendPreference();
+}
+
+export function isBackendForcedLocal() {
+  return readBackendPreference() === "local";
+}
+
+export function isBackendForcedSupabase() {
+  return readBackendPreference() === "supabase";
 }
 
 // Exportamos utilidades REST para otros servicios (e.g., packsApi)
