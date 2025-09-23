@@ -35,11 +35,22 @@ function warn(message, ...rest) {
   }
 }
 
+const TRUTHY_ENV = new Set(["1", "true", "yes", "on"]);
+
+function isTruthyEnv(value) {
+  if (typeof value !== "string") return false;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return false;
+  return TRUTHY_ENV.has(normalized);
+}
+
 function buildRestBaseUrl() {
   if (typeof import.meta !== "undefined" && import.meta.env?.VITE_PACKS_API_URL) {
     const envUrl = String(import.meta.env.VITE_PACKS_API_URL || "").trim();
     if (!envUrl) return null;
     const normalized = envUrl.endsWith("/") ? envUrl.slice(0, -1) : envUrl;
+
+    const allowLoopbackOverride = isTruthyEnv(import.meta.env.VITE_PACKS_API_ALLOW_LOOPBACK);
 
     if (/^https?:\/\//i.test(normalized)) {
       try {
@@ -47,11 +58,16 @@ function buildRestBaseUrl() {
         if (isLoopbackHostname(hostname)) {
           const currentHost = getBrowserHostname();
           if (currentHost && !isLoopbackHostname(currentHost)) {
+            if (!allowLoopbackOverride) {
+              warn(
+                `[packsApi] Ignorando VITE_PACKS_API_URL="${envUrl}" porque la aplicación no se ejecuta en localhost. ` +
+                  "Quita la variable o usa una URL accesible públicamente."
+              );
+              return null;
+            }
             warn(
-              `[packsApi] Ignorando VITE_PACKS_API_URL="${envUrl}" porque la aplicación no se ejecuta en localhost. ` +
-                "Quita la variable o usa una URL accesible públicamente."
+              `[packsApi] VITE_PACKS_API_ALLOW_LOOPBACK activo: usando URL local "${envUrl}" aun cuando la aplicación no se ejecuta en localhost.`
             );
-            return null;
           }
         }
       } catch (err) {
