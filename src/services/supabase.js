@@ -1,8 +1,41 @@
-const env = typeof import.meta !== "undefined" ? import.meta.env ?? {} : {};
-const rawUrl = env.VITE_SUPABASE_URL;
+const env = typeof import.meta !== "undefined" && import.meta.env ? import.meta.env : {};
+
+function readRuntimeEnv(key) {
+  const variants = [key];
+  if (key.startsWith("VITE_")) {
+    const bare = key.slice(5);
+    if (bare) variants.push(bare);
+    variants.push(`REACT_APP_${bare}`);
+    variants.push(`NEXT_PUBLIC_${bare}`);
+  }
+
+  const processEnv = typeof process !== "undefined" && process?.env ? process.env : undefined;
+  const globalEnv =
+    (typeof globalThis !== "undefined" &&
+      (globalThis.__ENV__ || globalThis.__APP_ENV__ || globalThis.__APP_CONFIG__)) ||
+    undefined;
+
+  for (const name of variants) {
+    if (env && env[name] != null) return env[name];
+    if (globalEnv && globalEnv[name] != null) return globalEnv[name];
+    if (processEnv && processEnv[name] != null) return processEnv[name];
+  }
+  return undefined;
+}
+
+function normalizeEnvValue(value) {
+  if (value == null) return undefined;
+  const trimmed = String(value).trim();
+  if (!trimmed) return undefined;
+  const lower = trimmed.toLowerCase();
+  if (lower === "undefined" || lower === "null") return undefined;
+  return trimmed;
+}
+
+const rawUrl = normalizeEnvValue(readRuntimeEnv("VITE_SUPABASE_URL"));
 const SUPABASE_URL = rawUrl ? rawUrl.replace(/\/$/, "") : undefined;
-const SUPABASE_ANON_KEY = env.VITE_SUPABASE_ANON_KEY;
-const PROGRESS_TABLE = env.VITE_SUPABASE_PROGRESS_TABLE || "user_progress";
+const SUPABASE_ANON_KEY = normalizeEnvValue(readRuntimeEnv("VITE_SUPABASE_ANON_KEY"));
+const PROGRESS_TABLE = normalizeEnvValue(readRuntimeEnv("VITE_SUPABASE_PROGRESS_TABLE")) || "user_progress";
 
 // Advertencia de placeholder: ayuda a detectar que el usuario aún no sustituyó la URL real
 if (typeof console !== "undefined" && SUPABASE_URL && /tu-proyecto\.supabase\.co/.test(SUPABASE_URL)) {
@@ -256,6 +289,19 @@ export function isSupabaseConfigured() {
 
 export function getProgressTableName() {
   return PROGRESS_TABLE;
+}
+
+export function getSupabaseUrl() {
+  return SUPABASE_URL;
+}
+
+export function getSupabaseAnonKey() {
+  return SUPABASE_ANON_KEY;
+}
+
+export function getSupabaseCredentials() {
+  if (!isSupabaseConfigured()) return null;
+  return { url: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY };
 }
 
 // Exportamos utilidades REST para otros servicios (e.g., packsApi)
