@@ -1,6 +1,7 @@
 // src/services/dataService.js
 import {
   getProgressTableName,
+  getBackendPreference,
   isSupabaseConfigured,
   requireAuthUser,
   loadUserState,
@@ -10,23 +11,8 @@ import {
 
 const LS_KEY = "lingua_avventura_progress_v2";
 
-function readRuntimeBackendPreference() {
-  const env =
-    (typeof import.meta !== "undefined" && import.meta.env?.VITE_BACKEND) ??
-    (typeof globalThis !== "undefined" &&
-      (globalThis.__ENV__?.VITE_BACKEND ||
-        globalThis.__APP_ENV__?.VITE_BACKEND ||
-        globalThis.__APP_CONFIG__?.VITE_BACKEND)) ??
-    (typeof process !== "undefined" ? process.env?.VITE_BACKEND : undefined);
-
-  if (!env) return "";
-  const normalized = String(env).trim().toLowerCase();
-  if (normalized === "supabase" || normalized === "local") return normalized;
-  return "";
-}
-
 function resolveBackend() {
-  const configured = readRuntimeBackendPreference();
+  const configured = getBackendPreference();
   if (configured) return configured;
   return isSupabaseConfigured() ? "supabase" : "local";
 }

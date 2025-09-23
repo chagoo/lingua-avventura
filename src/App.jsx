@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { onAuth, logout, checkIsAdmin, isSupabaseConfigured } from "./services/supabase";
+import { onAuth, logout, checkIsAdmin, isSupabaseConfigured, getBackendPreference } from "./services/supabase";
 import LoginForm from "./components/LoginForm";
 
 import { useProgress } from "./hooks/useProgress";
@@ -24,12 +24,14 @@ import AdminManager from "./components/AdminManager";
 const LOCAL_USER = { id: "local-user", email: "offline@lingua.local" };
 
 export default function Root() {
-  const [supabaseEnabled, setSupabaseEnabled] = useState(() => isSupabaseConfigured());
+  const backendPreference = getBackendPreference();
+  const supabaseForcedLocal = backendPreference === "local";
+  const [supabaseEnabled, setSupabaseEnabled] = useState(() => (supabaseForcedLocal ? false : isSupabaseConfigured()));
   const [user, setUser] = useState(() => (supabaseEnabled ? null : LOCAL_USER));
   const [checking, setChecking] = useState(supabaseEnabled);
 
   useEffect(() => {
-    if (supabaseEnabled) return () => {};
+    if (supabaseForcedLocal || supabaseEnabled) return () => {};
     let attempts = 0;
     const maxAttempts = 20; // ~10s (20 * 500ms)
     let cancelled = false;
@@ -49,7 +51,7 @@ export default function Root() {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [supabaseEnabled]);
+  }, [supabaseEnabled, supabaseForcedLocal]);
 
   useEffect(() => {
     if (!supabaseEnabled) {
@@ -68,11 +70,11 @@ export default function Root() {
   if (checking) return <div style={{ padding: 16 }}>Cargando…</div>;
   if (!user) return <LoginForm />;
 
-  return <AppShell user={user} supabaseEnabled={supabaseEnabled} />;
+  return <AppShell user={user} supabaseEnabled={supabaseEnabled} supabaseForcedLocal={supabaseForcedLocal} />;
 }
 
 // AppShell: contiene todos los demás hooks (orden estable)
-function AppShell({ user, supabaseEnabled }) {
+function AppShell({ user, supabaseEnabled, supabaseForcedLocal }) {
   // IMPORTANTE: el orden de hooks debe ser estable entre renders.
   // No colocar returns condicionales antes de declarar todos los hooks.
   const { progress, loading, error, awardXP, incrementCompletion, markLearned, setNarrationMode, resetAll, setThemeMode } = useProgress();
@@ -290,7 +292,9 @@ function AppShell({ user, supabaseEnabled }) {
         <main className="max-w-6xl mx-auto p-4">
           {!supabaseEnabled && (
             <p className="mb-4 text-sm text-amber-700 dark:text-amber-300">
-              Supabase no está configurado. El progreso se guardará solo en este dispositivo.
+              {supabaseForcedLocal
+                ? "Supabase está deshabilitado (modo offline forzado). El progreso se guardará solo en este dispositivo."
+                : "Supabase no está configurado. El progreso se guardará solo en este dispositivo."}
             </p>
           )}
           <Tabs tabs={tabs} value={tab} onChange={setTab} />
