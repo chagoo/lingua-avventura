@@ -294,7 +294,7 @@ function AppShell({ user, supabaseEnabled, supabaseForcedLocal }) {
             <p className="mb-4 text-sm text-amber-700 dark:text-amber-300">
               {supabaseForcedLocal
                 ? "Supabase está deshabilitado (modo offline forzado). El progreso se guardará solo en este dispositivo."
-                : "Supabase no está configurado. El progreso se guardará solo en este dispositivo."}
+                : "Continúa marcando. Supabase no está configurado. El progreso se guardará solo en este dispositivo."}
             </p>
           )}
           <Tabs tabs={tabs} value={tab} onChange={setTab} />
