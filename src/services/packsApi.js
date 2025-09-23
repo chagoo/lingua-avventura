@@ -4,7 +4,7 @@
 // 3) JSON local (fallback offline)
 
 import { getPack as getLocalPack, getAvailableLanguages as getLocalLangs } from "../data/packs";
-import { restUpsert, isSupabaseConfigured, restFetch } from './supabase';
+import { restUpsert, isSupabaseConfigured, restFetch, getSupabaseCredentials } from './supabase';
 
 function buildRestBaseUrl() {
   if (typeof import.meta !== "undefined" && import.meta.env?.VITE_PACKS_API_URL) {
@@ -17,16 +17,8 @@ function buildRestBaseUrl() {
 
 const API_BASE_URL = buildRestBaseUrl();
 
-function supabaseConfig() {
-  if (typeof import.meta === "undefined") return null;
-  const url = import.meta.env?.VITE_SUPABASE_URL;
-  const anon = import.meta.env?.VITE_SUPABASE_ANON_KEY;
-  if (!url || !anon) return null;
-  return { url: url.replace(/\/$/, ""), anon };
-}
-
 async function fetchFromSupabase(lang, packName, { signal } = {}) {
-  const cfg = supabaseConfig();
+  const cfg = getSupabaseCredentials();
   if (!cfg) throw new Error("SUPABASE_NOT_CONFIGURED");
   let query = `${cfg.url}/rest/v1/vocab_words?lang=eq.${encodeURIComponent(lang)}`;
   if (packName && packName !== 'default') {
@@ -36,8 +28,8 @@ async function fetchFromSupabase(lang, packName, { signal } = {}) {
   const res = await fetch(url, {
     signal,
     headers: {
-      apikey: cfg.anon,
-      Authorization: `Bearer ${cfg.anon}`,
+      apikey: cfg.anonKey,
+      Authorization: `Bearer ${cfg.anonKey}`,
       Accept: "application/json",
     },
   });
@@ -96,14 +88,14 @@ export async function fetchPack(lang, { packName = 'default', signal } = {}) {
 }
 
 async function fetchSupabaseLanguages({ signal } = {}) {
-  const cfg = supabaseConfig();
+  const cfg = getSupabaseCredentials();
   if (!cfg) throw new Error("SUPABASE_NOT_CONFIGURED");
   const url = `${cfg.url}/rest/v1/vocab_words?select=lang&distinct=lang`;
   const res = await fetch(url, {
     signal,
     headers: {
-      apikey: cfg.anon,
-      Authorization: `Bearer ${cfg.anon}`,
+      apikey: cfg.anonKey,
+      Authorization: `Bearer ${cfg.anonKey}`,
       Accept: "application/json",
     },
   });
@@ -161,7 +153,7 @@ export function getApiBaseUrl() { return API_BASE_URL; }
 export async function fetchAvailablePacks(lang, { signal } = {}) {
   // Intentar Supabase únicamente; si falla devolver ['default']
   try {
-    const cfg = supabaseConfig();
+    const cfg = getSupabaseCredentials();
     if (!cfg) throw new Error('NO_CFG');
     // Nota: algunos proyectos generan 400 con distinct=pack si no está habilitado correctamente.
     // Estrategia: solicitamos todas las filas solo con columna pack y deduplicamos en cliente.
@@ -169,8 +161,8 @@ export async function fetchAvailablePacks(lang, { signal } = {}) {
     const res = await fetch(url, {
       signal,
       headers: {
-        apikey: cfg.anon,
-        Authorization: `Bearer ${cfg.anon}`,
+        apikey: cfg.anonKey,
+        Authorization: `Bearer ${cfg.anonKey}`,
         Accept: 'application/json'
       }
     });
