@@ -130,6 +130,7 @@ Ejemplo de `.env.local` para desarrollo:
 VITE_SUPABASE_URL=https://<project-ref>.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOi...
 VITE_PACKS_API_URL=http://localhost:4000   # opcional (servidor Node local)
+# VITE_PACKS_API_ALLOW_LOOPBACK=true       # fuerza usar localhost aunque la app esté en otro host
 # VITE_SUPABASE_PROGRESS_TABLE=user_progress
 ```
 
@@ -150,9 +151,10 @@ El repositorio incluye un workflow en `.github/workflows/deploy.yml` que:
 ### Pasos
 1. En GitHub: Settings → Pages: Source = GitHub Actions.
 2. Añade secrets en Settings → Secrets → Actions:
-  - `VITE_SUPABASE_URL` (Project URL sin barra final)
-  - `VITE_SUPABASE_ANON_KEY` (anon key)
-  - (Opcional) `VITE_PACKS_API_URL` si quieres usar la API externa como fallback.
+- `VITE_SUPABASE_URL` (Project URL sin barra final)
+- `VITE_SUPABASE_ANON_KEY` (anon key)
+- (Opcional) `VITE_PACKS_API_URL` si quieres usar la API externa como fallback.
+- (Opcional) `VITE_PACKS_API_ALLOW_LOOPBACK` si necesitas consumir una URL local desde un host distinto (por ejemplo con un túnel).
 3. Asegúrate de que `vite.config.js` tiene `base: '/lingua-avventura/'` (ya configurado).
 4. Push a `main` para disparar el workflow.
 5. Visita: `https://<usuario>.github.io/lingua-avventura/`.
