@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { onAuth, logout, checkIsAdmin } from "./services/supabase";
+import { onAuth, logout, checkIsAdmin, isSupabaseConfigured } from "./services/supabase";
 import LoginForm from "./components/LoginForm";
 
 import { useProgress } from "./hooks/useProgress";
@@ -21,25 +21,33 @@ import PackManager from "./components/PackManager";
 import AdminManager from "./components/AdminManager";
 
 // Root: maneja auth y solo monta AppShell cuando hay usuario
+const LOCAL_USER = { id: "local-user", email: "offline@lingua.local" };
+
 export default function Root() {
-  const [user, setUser] = useState(null);
-  const [checking, setChecking] = useState(true);
+  const supabaseEnabled = isSupabaseConfigured();
+  const [user, setUser] = useState(() => (supabaseEnabled ? null : LOCAL_USER));
+  const [checking, setChecking] = useState(supabaseEnabled);
 
   useEffect(() => {
+    if (!supabaseEnabled) {
+      setChecking(false);
+      setUser(LOCAL_USER);
+      return () => {};
+    }
     return onAuth(u => {
       setUser(u);
       setChecking(false);
     });
-  }, []);
+  }, [supabaseEnabled]);
 
   if (checking) return <div style={{ padding: 16 }}>Cargando…</div>;
   if (!user) return <LoginForm />;
 
-  return <AppShell user={user} />;
+  return <AppShell user={user} supabaseEnabled={supabaseEnabled} />;
 }
 
 // AppShell: contiene todos los demás hooks (orden estable)
-function AppShell({ user }) {
+function AppShell({ user, supabaseEnabled }) {
   // IMPORTANTE: el orden de hooks debe ser estable entre renders.
   // No colocar returns condicionales antes de declarar todos los hooks.
   const { progress, loading, error, awardXP, incrementCompletion, markLearned, setNarrationMode, resetAll, setThemeMode } = useProgress();
@@ -73,10 +81,14 @@ function AppShell({ user }) {
 
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
+    if (!supabaseEnabled) {
+      setIsAdmin(false);
+      return () => {};
+    }
     let active = true;
     checkIsAdmin().then(v => { if (active) setIsAdmin(!!v); });
     return () => { active = false; };
-  }, [user?.id, user?.email]);
+  }, [supabaseEnabled, user?.id, user?.email]);
 
   const tabs = useMemo(() => {
     const base = [
@@ -173,6 +185,7 @@ function AppShell({ user }) {
               <span className="text-2xl">🍝</span>
               <h1 className="text-xl md:text-2xl font-extrabold tracking-tight">Lingua Avventura</h1>
               <Chip>Idiomas para hispanohablantes</Chip>
+              {!supabaseEnabled && <Chip>Modo offline</Chip>}
               {isAdmin && <Chip>Admin</Chip>}
             </div>
             <div className="flex items-center gap-2">
@@ -245,11 +258,16 @@ function AppShell({ user }) {
                   )}
                 </span>
               </button>
-              <Button variant="ghost" className="px-3" onClick={logout}>Salir</Button>
+              {supabaseEnabled && <Button variant="ghost" className="px-3" onClick={logout}>Salir</Button>}
             </div>
           </div>
         </header>
         <main className="max-w-6xl mx-auto p-4">
+          {!supabaseEnabled && (
+            <p className="mb-4 text-sm text-amber-700 dark:text-amber-300">
+              Supabase no está configurado. El progreso se guardará solo en este dispositivo.
+            </p>
+          )}
           <Tabs tabs={tabs} value={tab} onChange={setTab} />
           {packLoading && (
             <p className="mt-4 text-sm text-neutral-600 dark:text-neutral-300">
