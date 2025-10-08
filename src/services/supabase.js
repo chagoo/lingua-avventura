@@ -1,5 +1,143 @@
 const env = typeof import.meta !== "undefined" && import.meta.env ? import.meta.env : {};
 
+function toCamelCase(value) {
+  if (!value) return "";
+  return String(value)
+    .toLowerCase()
+    .split(/[_\s-]+/g)
+    .filter(Boolean)
+    .map((segment, index) => {
+      if (index === 0) return segment;
+      return segment.charAt(0).toUpperCase() + segment.slice(1);
+    })
+    .join("");
+}
+
+let aggregatedEnvCache;
+
+function decodeBase64(str) {
+  if (typeof str !== "string" || !str) return null;
+  try {
+    if (typeof atob === "function") {
+      return atob(str);
+    }
+  } catch (err) {
+    /* ignore */
+  }
+  if (typeof Buffer !== "undefined") {
+    try {
+      return Buffer.from(str, "base64").toString("utf-8");
+    } catch (err) {
+      /* ignore */
+    }
+  }
+  return null;
+}
+
+function parseAggregatedCandidate(candidate) {
+  if (!candidate) return null;
+  if (typeof candidate === "object") {
+    return candidate;
+  }
+  if (typeof candidate !== "string") return null;
+  const trimmed = candidate.trim();
+  if (!trimmed) return null;
+
+  const tryParseJson = (value) => {
+    try {
+      return JSON.parse(value);
+    } catch (err) {
+      return null;
+    }
+  };
+
+  let parsed = tryParseJson(trimmed);
+  if (parsed && typeof parsed === "object") return parsed;
+
+  const decoded = decodeBase64(trimmed);
+  if (decoded) {
+    parsed = tryParseJson(decoded.trim());
+    if (parsed && typeof parsed === "object") return parsed;
+  }
+
+  const kvPairs = {};
+  trimmed
+    .split(/[\n\r;,]+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .forEach((line) => {
+      const match = line.split(/[:=]/);
+      if (match.length >= 2) {
+        const key = match[0].trim();
+        const value = match.slice(1).join(":=").trim();
+        if (key) kvPairs[key] = value;
+      }
+    });
+  if (Object.keys(kvPairs).length > 0) {
+    return kvPairs;
+  }
+
+  const pipeParts = trimmed.split("|");
+  if (pipeParts.length >= 2) {
+    const [url, anonKey, progress] = pipeParts.map((part) => part.trim()).filter(Boolean);
+    const result = {};
+    if (url) result.VITE_SUPABASE_URL = url;
+    if (anonKey) result.VITE_SUPABASE_ANON_KEY = anonKey;
+    if (progress) result.VITE_SUPABASE_PROGRESS_TABLE = progress;
+    if (Object.keys(result).length > 0) {
+      return result;
+    }
+  }
+
+  return null;
+}
+
+function getAggregatedEnv() {
+  if (aggregatedEnvCache !== undefined) return aggregatedEnvCache;
+
+  const processEnv = typeof process !== "undefined" && process?.env ? process.env : undefined;
+  const globalEnv =
+    (typeof globalThis !== "undefined" &&
+      (globalThis.__ENV__ || globalThis.__APP_ENV__ || globalThis.__APP_CONFIG__)) ||
+    undefined;
+
+  const aggregatedKeys = [
+    "LINGUA_AVVENTURE",
+    "LINGUA_AVVENTURA",
+    "SUPABASE_CONFIG",
+    "APP_CONFIG",
+    "LINGUA_CONFIG",
+  ];
+
+  const candidates = [];
+  const addCandidate = (value) => {
+    if (value == null) return;
+    candidates.push(value);
+  };
+
+  aggregatedKeys.forEach((key) => {
+    if (env && env[key] != null) addCandidate(env[key]);
+    if (processEnv && processEnv[key] != null) addCandidate(processEnv[key]);
+    if (globalEnv && typeof globalEnv === "object" && key in globalEnv) addCandidate(globalEnv[key]);
+    if (typeof globalThis !== "undefined" && globalThis[key] != null) addCandidate(globalThis[key]);
+  });
+
+  if (typeof globalEnv === "object" && globalEnv) {
+    candidates.push(globalEnv);
+  }
+
+  for (const candidate of candidates) {
+    const parsed = parseAggregatedCandidate(candidate);
+    if (parsed && typeof parsed === "object") {
+      aggregatedEnvCache = parsed;
+      return aggregatedEnvCache;
+    }
+  }
+
+  aggregatedEnvCache = null;
+  return aggregatedEnvCache;
+}
+
 function readRuntimeEnv(key) {
   const variants = [key];
   if (key.startsWith("VITE_")) {
@@ -7,6 +145,12 @@ function readRuntimeEnv(key) {
     if (bare) variants.push(bare);
     variants.push(`REACT_APP_${bare}`);
     variants.push(`NEXT_PUBLIC_${bare}`);
+    if (bare) {
+      const camel = toCamelCase(bare);
+      if (camel) variants.push(camel);
+      const lower = camel.toLowerCase();
+      if (lower && lower !== camel) variants.push(lower);
+    }
   }
 
   const processEnv = typeof process !== "undefined" && process?.env ? process.env : undefined;
@@ -19,6 +163,16 @@ function readRuntimeEnv(key) {
     if (env && env[name] != null) return env[name];
     if (globalEnv && globalEnv[name] != null) return globalEnv[name];
     if (processEnv && processEnv[name] != null) return processEnv[name];
+    const aggregated = getAggregatedEnv();
+    if (aggregated && aggregated[name] != null) return aggregated[name];
+    if (aggregated && typeof aggregated === "object") {
+      for (const key in aggregated) {
+        if (!Object.prototype.hasOwnProperty.call(aggregated, key)) continue;
+        if (toCamelCase(key) === toCamelCase(name)) {
+          return aggregated[key];
+        }
+      }
+    }
   }
   return undefined;
 }
@@ -44,10 +198,61 @@ let warnedPlaceholderForUrl = null;
 let warnedMalformedForUrl = null;
 
 function resolveSupabaseEnv() {
-  const rawUrl = normalizeEnvValue(readRuntimeEnv("VITE_SUPABASE_URL"));
+  const aggregated = getAggregatedEnv();
+
+  const resolveFromAggregated = (object, ...keys) => {
+    if (!object) return undefined;
+    for (const key of keys) {
+      if (object[key] != null) return object[key];
+      const camelKey = toCamelCase(key);
+      for (const candidateKey of Object.keys(object)) {
+        if (toCamelCase(candidateKey) === camelKey && object[candidateKey] != null) {
+          return object[candidateKey];
+        }
+      }
+    }
+    return undefined;
+  };
+
+  const aggregatedGroups = [];
+  if (aggregated && typeof aggregated === "object") {
+    aggregatedGroups.push(aggregated);
+    const nestedCandidates = [
+      aggregated.supabase,
+      aggregated.supabaseConfig,
+      aggregated.supabase_credentials,
+      aggregated.supabaseSettings,
+      aggregated.credentials,
+    ];
+    nestedCandidates.forEach((candidate) => {
+      if (candidate && typeof candidate === "object") {
+        aggregatedGroups.push(candidate);
+      }
+    });
+  }
+
+  const findAggregated = (...keys) => {
+    for (const group of aggregatedGroups) {
+      const value = resolveFromAggregated(group, ...keys);
+      if (value != null) return value;
+    }
+    return undefined;
+  };
+
+  const rawUrl = normalizeEnvValue(
+    readRuntimeEnv("VITE_SUPABASE_URL") ||
+      findAggregated("VITE_SUPABASE_URL", "SUPABASE_URL", "supabaseUrl", "url", "projectUrl")
+  );
   const url = rawUrl ? rawUrl.replace(/\/$/, "") : undefined;
-  const anonKey = normalizeEnvValue(readRuntimeEnv("VITE_SUPABASE_ANON_KEY"));
-  const progressTable = normalizeEnvValue(readRuntimeEnv("VITE_SUPABASE_PROGRESS_TABLE")) || "user_progress";
+  const anonKey = normalizeEnvValue(
+    readRuntimeEnv("VITE_SUPABASE_ANON_KEY") ||
+      findAggregated("VITE_SUPABASE_ANON_KEY", "SUPABASE_ANON_KEY", "anonKey", "key", "supabaseAnonKey")
+  );
+  const progressTable =
+    normalizeEnvValue(
+      readRuntimeEnv("VITE_SUPABASE_PROGRESS_TABLE") ||
+        findAggregated("VITE_SUPABASE_PROGRESS_TABLE", "progressTable", "table")
+    ) || "user_progress";
 
   // Advertencias solamente una vez por URL detectada
   if (typeof console !== "undefined" && url) {
