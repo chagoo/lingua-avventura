@@ -136,6 +136,8 @@ VITE_PACKS_API_URL=http://localhost:4000   # opcional (servidor Node local)
 
 Para producción (GitHub Pages) las variables se inyectan en build mediante *GitHub Secrets* (no existe `.env` en tiempo de ejecución). Ver sección siguiente.
 
+Durante `npm run dev`/`npm run build` se genera automáticamente `public/runtime-env.js` a partir de las variables disponibles. Ese archivo **no** se versiona (está en `.gitignore`) y queda incluido en el build final para que la SPA pueda leer la configuración en tiempo de ejecución.
+
 ## Build
 ```bash
 npm run build
