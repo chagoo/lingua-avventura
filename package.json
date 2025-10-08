@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "description": "Juego de aventura interactiva para aprender idiomas.",
   "scripts": {
+    "predev": "node scripts/write-runtime-env.js",
+    "prebuild": "node scripts/write-runtime-env.js",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
