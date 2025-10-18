@@ -1,0 +1,15 @@
+{
+  "timestamp": "2024-04-18T00:00:00.000Z",
+  "steps": [
+    {
+      "name": "Variables de entorno",
+      "status": "failed",
+      "details": "URL: (no encontrada) | Anon Key: (no encontrada) | Tabla de progreso: user_progress"
+    },
+    {
+      "name": "Conectividad",
+      "status": "blocked",
+      "details": "Faltan credenciales obligatorias para realizar la comprobación."
+    }
+  ]
+}

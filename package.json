@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "api": "node server/index.js",
-    "test": "echo \"No hay pruebas configuradas\" && exit 0"
+    "test": "echo \"No hay pruebas configuradas\" && exit 0",
+    "validate:supabase": "node scripts/validate-supabase-connection.js"
   },
   "license": "MIT",
   "devDependencies": {
