@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const OUTPUT_FILE = path.resolve(__dirname, '..', 'public', 'runtime-env.js');
+const LOCAL_CONFIG_FILE = path.resolve(__dirname, '..', 'config', 'supabase.config.json');
 
 const envKeys = [
   'VITE_SUPABASE_URL',
@@ -125,6 +126,32 @@ function collectAggregatedGroups() {
       });
     }
   });
+
+  try {
+    const raw = fs.readFileSync(LOCAL_CONFIG_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      groups.push(parsed);
+      const nested = [
+        parsed.supabase,
+        parsed.supabaseConfig,
+        parsed.supabase_credentials,
+        parsed.supabaseSettings,
+        parsed.credentials
+      ];
+      nested.forEach((candidate) => {
+        if (candidate && typeof candidate === 'object') {
+          groups.push(candidate);
+        }
+      });
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      console.warn(
+        `[runtime-env] No se pudo leer ${path.relative(process.cwd(), LOCAL_CONFIG_FILE)}: ${error.message}`
+      );
+    }
+  }
 
   return groups;
 }

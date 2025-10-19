@@ -12,6 +12,24 @@ const fs = require("fs");
 const path = require("path");
 
 const LOGS_DIR = path.join(process.cwd(), "logs");
+const LOCAL_CONFIG_FILE = path.join(process.cwd(), "config", "supabase.config.json");
+
+function loadLocalConfig() {
+  try {
+    const raw = fs.readFileSync(LOCAL_CONFIG_FILE, "utf8");
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") {
+      return parsed;
+    }
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      console.warn(
+        `[supabase-validation] No se pudo leer ${path.relative(process.cwd(), LOCAL_CONFIG_FILE)}: ${error.message}`
+      );
+    }
+  }
+  return {};
+}
 
 function ensureLogsDir() {
   if (!fs.existsSync(LOGS_DIR)) {
@@ -90,12 +108,15 @@ function normalize(value) {
 function resolveConfig() {
   const env = process.env || {};
 
+  const localConfig = loadLocalConfig();
+
   const aggregatedCandidates = [
     env.LINGUA_AVVENTURE,
     env.LINGUA_AVVENTURA,
     env.SUPABASE_CONFIG,
     env.APP_CONFIG,
     env.LINGUA_CONFIG,
+    localConfig,
   ]
     .map(parseAggregatedConfig)
     .reduce((acc, current) => Object.assign(acc, current), {});

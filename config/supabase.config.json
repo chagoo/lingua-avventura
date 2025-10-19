@@ -1,0 +1,5 @@
+{
+  "VITE_SUPABASE_URL": "https://lingua-avventura-demo.supabase.co",
+  "VITE_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.linguaAvventuraDemoKey.qwerty1234567890Demo",
+  "VITE_SUPABASE_PROGRESS_TABLE": "user_progress"
+}
