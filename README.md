@@ -155,9 +155,24 @@ El repositorio incluye un workflow en `.github/workflows/deploy.yml` que:
 2. Añade secrets en Settings → Secrets → Actions:
 - `VITE_SUPABASE_URL` (Project URL sin barra final)
 - `VITE_SUPABASE_ANON_KEY` (anon key)
+- (Opcional) `LINGUA_AVVENTURE` con un JSON/base64 que agrupe toda la configuración (ver ejemplo más abajo).
 - (Opcional) `VITE_PACKS_API_URL` si quieres usar la API externa como fallback.
 - (Opcional) `VITE_PACKS_API_ALLOW_LOOPBACK` si necesitas consumir una URL local desde un host distinto (por ejemplo con un túnel).
 3. Asegúrate de que `vite.config.js` tiene `base: '/lingua-avventura/'` (ya configurado).
+
+### Secret compuesto (`LINGUA_AVVENTURE`)
+
+Si prefieres gestionar menos secrets, crea uno llamado `LINGUA_AVVENTURE` con la configuración agrupada. Puede ser un JSON (o su representación en base64) con las claves necesarias:
+
+```json
+{
+  "VITE_SUPABASE_URL": "https://<project-ref>.supabase.co",
+  "VITE_SUPABASE_ANON_KEY": "eyJhbGciOi...",
+  "VITE_SUPABASE_PROGRESS_TABLE": "user_progress"
+}
+```
+
+El workflow de GitHub Actions y la app detectan automáticamente este secret y lo desglosan en las variables `VITE_*` correspondientes durante el build.
 4. Push a `main` para disparar el workflow.
 5. Visita: `https://<usuario>.github.io/lingua-avventura/`.
 
